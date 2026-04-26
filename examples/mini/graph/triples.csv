@@ -1,0 +1,6 @@
+triple_id,head_id,relation,tail_id,head_ontology,tail_ontology,source,provenance,is_inferred,is_anchor,release_layer
+T00000001,NCIT:C001,subclass_of,NCIT:CROOT,NCIT,NCIT,mini,asserted,false,false,public
+T00000002,NCIT:C002,subclass_of,NCIT:CROOT,NCIT,NCIT,mini,asserted,false,false,public
+T00000003,DOID:D001,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,public
+T00000004,DOID:D002,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,public
+T00000005,DOID:D003,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,public

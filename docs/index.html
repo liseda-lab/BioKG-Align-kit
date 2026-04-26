@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BioKG-Align Challenge</title>
+    <meta
+      name="description"
+      content="Pre-launch website draft for BioKG-Align, a biomedical knowledge graph alignment challenge."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="BioKG-Align home">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span>BioKG-Align</span>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#task">Task</a>
+        <a href="#data">Data</a>
+        <a href="#evaluation">Evaluation</a>
+        <a href="#participate">Participate</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero band">
+        <div class="hero-copy">
+          <p class="eyebrow">Pre-launch NeurIPS challenge draft</p>
+          <h1>BioKG-Align: Link Prediction and Typing over Ontology-Derived Biomedical Knowledge Graphs</h1>
+          <p class="lede">
+            BioKG-Align reframes biomedical ontology matching as relation-aware candidate ranking over
+            knowledge graphs. Systems receive a source entity and a fixed set of target candidates, then
+            rank candidate-relation pairs for equivalence or directional subsumption.
+          </p>
+          <div class="cta-row">
+            <a class="button primary" href="#participate">How to participate</a>
+            <a class="button secondary" href="#data">Review data format</a>
+          </div>
+        </div>
+        <div class="kg-visual" aria-label="Biomedical knowledge graph alignment motif">
+          <div class="node node-a">NCIT</div>
+          <div class="node node-b">DOID</div>
+          <div class="node node-c">SNOMED</div>
+          <div class="node node-d">FMA</div>
+          <div class="node node-e">OMIM</div>
+          <div class="node node-f">ORDO</div>
+          <span class="edge edge-ab" aria-hidden="true"></span>
+          <span class="edge edge-cd" aria-hidden="true"></span>
+          <span class="edge edge-ef" aria-hidden="true"></span>
+          <span class="edge edge-center-1" aria-hidden="true"></span>
+          <span class="edge edge-center-2" aria-hidden="true"></span>
+          <div class="motif-center">
+            <span>candidate</span>
+            <strong>relation</strong>
+            <span>ranking</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="status-strip" aria-label="Current readiness status">
+        <div>
+          <strong>Status</strong>
+          <span>Participant kit available; official dataset release in preparation.</span>
+        </div>
+        <div>
+          <strong>Platform</strong>
+          <span><span class="tag warning">TBD</span> CodaBench, EvalAI, or Kaggle under review.</span>
+        </div>
+        <div>
+          <strong>Data host</strong>
+          <span><span class="tag warning">TBD</span> Candidate: Hugging Face Dataset with Zenodo DOI snapshot.</span>
+        </div>
+      </section>
+
+      <section id="overview" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Overview</p>
+          <h2>Biomedical alignment for graph, text, and neuro-symbolic methods</h2>
+        </div>
+        <div class="two-col">
+          <p>
+            Biomedical knowledge is distributed across independently developed ontologies and controlled
+            vocabularies. Aligning these resources supports search, data integration, clinical research,
+            machine learning, and auditable knowledge base construction.
+          </p>
+          <p>
+            The challenge exposes ontology alignment through a familiar machine learning interface:
+            typed link prediction over fixed candidate sets. Participants may use graph triples, node
+            properties, and optional Datalog rules derived from ontology structure.
+          </p>
+        </div>
+      </section>
+
+      <section id="task" class="band alt">
+        <div class="section-heading">
+          <p class="eyebrow">Task</p>
+          <h2>Rank candidate-relation pairs across ontology pairs</h2>
+        </div>
+        <div class="grid cards">
+          <article class="card">
+            <h3>Input</h3>
+            <p>
+              Each query provides a source entity, a target ontology, and a fixed list of target
+              candidates. The current scaffold uses exactly 30 candidates per query.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Output</h3>
+            <p>
+              Submissions score candidate-relation pairs using the official relation names:
+              <code>equivalent</code>, <code>source_subsumed_by_target</code>, and
+              <code>source_subsumes_target</code>.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Correctness</h3>
+            <p>
+              A prediction is relevant only when both the target entity and the relation type match
+              the hidden reference alignment.
+            </p>
+          </article>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <caption>Planned ontology-pair tasks</caption>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Source</th>
+                <th>Target</th>
+                <th>Current role</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>NCIT-DOID</code></td>
+                <td>NCIT</td>
+                <td>DOID</td>
+                <td>Disease and cancer concept alignment</td>
+              </tr>
+              <tr>
+                <td><code>OMIM-ORDO</code></td>
+                <td>OMIM</td>
+                <td>ORDO</td>
+                <td>Rare disease and inherited disorder alignment</td>
+              </tr>
+              <tr>
+                <td><code>SNOMED-FMA</code></td>
+                <td>SNOMED CT</td>
+                <td>FMA</td>
+                <td>Clinical anatomy to anatomy alignment</td>
+              </tr>
+              <tr>
+                <td><code>SNOMED-NCIT</code></td>
+                <td>SNOMED CT</td>
+                <td>NCIT</td>
+                <td>Clinical concept to cancer and disease alignment</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="data" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Data</p>
+          <h2>Public graph package plus hidden-label evaluation</h2>
+        </div>
+        <div class="notice">
+          <strong>Pre-launch note:</strong>
+          final ontology versions, licenses, file counts, train/validation/test sizes, and download URLs
+          are <span class="tag warning">TBD</span>. This public kit contains a tiny example dataset,
+          scorer, validator, baselines, and documentation; it does not generate the official dataset.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption>Expected public release files</caption>
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>Purpose</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>graph/triples.csv</code></td>
+                <td>Typed intra-ontology graph triples and released training anchors.</td>
+                <td>Format documented; official release TBD.</td>
+              </tr>
+              <tr>
+                <td><code>graph/properties.csv</code></td>
+                <td>Node identifiers, ontology membership, labels, synonyms, definitions, and permitted metadata.</td>
+                <td>Format documented; license-cleared release TBD.</td>
+              </tr>
+              <tr>
+                <td><code>graph/rules.dl</code></td>
+                <td>Selected Datalog-compatible rules derived from ontology axioms.</td>
+                <td>Format documented; final rule projection TBD.</td>
+              </tr>
+              <tr>
+                <td><code>alignments/train.tsv</code>, <code>alignments/valid.tsv</code></td>
+                <td>Public supervised labels with relation types.</td>
+                <td>Format documented; final splits TBD.</td>
+              </tr>
+              <tr>
+                <td><code>tasks/*/*.cands.tsv</code></td>
+                <td>Candidate files for train, validation, and test queries.</td>
+                <td>Format documented; official candidate sets TBD.</td>
+              </tr>
+              <tr>
+                <td><code>evaluation/*</code></td>
+                <td>Sample submission, schema, and local scorer interface.</td>
+                <td>Kit command available; platform integration TBD.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="split-callout">
+          <div>
+            <h3>Public by design</h3>
+            <p>
+              Participants receive graph files, public train and validation labels, public candidate sets,
+              baseline code, documentation, manifests, and a local validation scorer.
+            </p>
+          </div>
+          <div>
+            <h3>Private by design</h3>
+            <p>
+              Hidden test answers, full hidden references, split construction details, licensed raw sources,
+              and official hidden scorer assets are not part of this public kit.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="evaluation" class="band alt">
+        <div class="section-heading">
+          <p class="eyebrow">Evaluation</p>
+          <h2>Relation-aware ranking with typed predictions</h2>
+        </div>
+        <div class="two-col">
+          <p>
+            The primary leaderboard metric is planned to be macro-averaged relation-aware nDCG@10 across
+            ontology-pair tasks. A ranked item is relevant only if the target entity and relation type are
+            both correct.
+          </p>
+          <p>
+            Secondary metrics from the current scaffold include MRR, Hits@1, Hits@5, Hits@10, MAP, and
+            macro-F1 over relation types. Confidence intervals and significance testing are
+            <span class="tag warning">TBD</span>.
+          </p>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <strong>Primary</strong>
+            <span>relation-aware nDCG@10</span>
+          </div>
+          <div class="metric">
+            <strong>Ranking</strong>
+            <span>MRR, Hits@K, MAP</span>
+          </div>
+          <div class="metric">
+            <strong>Typing</strong>
+            <span>macro-F1 over relation types</span>
+          </div>
+          <div class="metric">
+            <strong>Final checks</strong>
+            <span>code and environment reproducibility TBD</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="baselines" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Baselines</p>
+          <h2>Starting points for several participant communities</h2>
+        </div>
+        <div class="grid cards">
+          <article class="card">
+            <h3>Lexical</h3>
+            <p>Ranks candidates using preferred labels, synonyms, and string similarity.</p>
+          </article>
+          <article class="card">
+            <h3>Hybrid lexical</h3>
+            <p>Combines lexical similarity with simple relation priors from the current scaffold.</p>
+          </article>
+          <article class="card">
+            <h3>Graph embedding</h3>
+            <p><span class="tag warning">TBD</span> Planned baseline over graph triples and training anchors.</p>
+          </article>
+          <article class="card">
+            <h3>Text-enhanced</h3>
+            <p><span class="tag warning">TBD</span> Planned baseline using labels, synonyms, and definitions.</p>
+          </article>
+          <article class="card">
+            <h3>Rule-aware</h3>
+            <p><span class="tag warning">TBD</span> Planned baseline demonstrating use of Datalog-derived features.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="participate" class="band alt">
+        <div class="section-heading">
+          <p class="eyebrow">Protocol</p>
+          <h2>Participation flow</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <strong>Register</strong>
+            <span>Competition platform <span class="tag warning">TBD</span>.</span>
+          </li>
+          <li>
+            <strong>Download data</strong>
+            <span>Public dataset URL <span class="tag warning">TBD</span>; candidate host is under review.</span>
+          </li>
+          <li>
+            <strong>Train and validate</strong>
+            <span>Use public graph files, training labels, validation labels, and the starting kit.</span>
+          </li>
+          <li>
+            <strong>Submit predictions</strong>
+            <span>Upload scored candidate-relation pairs in the official TSV format.</span>
+          </li>
+          <li>
+            <strong>Finalize</strong>
+            <span>Top teams will provide code, environment details, and reproduction instructions.</span>
+          </li>
+        </ol>
+        <div class="table-wrap">
+          <table>
+            <caption>Expected submission columns</caption>
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SrcEntity</code></td>
+                <td>Source entity identifier from the query.</td>
+              </tr>
+              <tr>
+                <td><code>TgtEntity</code></td>
+                <td>One target entity from the provided candidate list.</td>
+              </tr>
+              <tr>
+                <td><code>Relation</code></td>
+                <td>One of the official relation names.</td>
+              </tr>
+              <tr>
+                <td><code>Score</code></td>
+                <td>Numeric confidence score used for ranking.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="rules" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Rules</p>
+          <h2>Draft contest rules</h2>
+        </div>
+        <ul class="rule-list">
+          <li>Participants must submit predictions in the official format.</li>
+          <li>Predictions must score only candidate entities provided in the evaluation files.</li>
+          <li>Released triples, node properties, Datalog rules, training anchors, and validation labels may be used.</li>
+          <li>External resources and pretrained models may be used if they are public, cited, and declared.</li>
+          <li>Hidden test labels, unpublished reference alignments, and manual annotation of the hidden test set are not allowed.</li>
+          <li>Final leaderboard submissions may require code and sufficient reproduction instructions.</li>
+          <li>Submitted systems are research prototypes and must not claim clinical validity.</li>
+        </ul>
+        <p class="small-note">
+          Final rules, external-resource policy, team limits, submission limits, and reproduction requirements
+          are <span class="tag warning">TBD</span>.
+        </p>
+      </section>
+
+      <section id="schedule" class="band alt">
+        <div class="section-heading">
+          <p class="eyebrow">Schedule</p>
+          <h2>Preparation timeline</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption>Tentative schedule placeholders</caption>
+            <thead>
+              <tr>
+                <th>Phase</th>
+                <th>Target</th>
+                <th>Readiness</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Dataset and license finalization</td>
+                <td><span class="tag warning">TBD</span></td>
+                <td>Ontology versions, redistribution plan, and source permissions under review.</td>
+              </tr>
+              <tr>
+                <td>Starting kit release</td>
+                <td><span class="tag warning">TBD</span></td>
+                <td>Fixture pipeline and scorer scaffold exist; real baselines pending.</td>
+              </tr>
+              <tr>
+                <td>Beta test</td>
+                <td><span class="tag warning">TBD</span></td>
+                <td>Planned with ontology matching, KG learning, and neuro-symbolic reviewers.</td>
+              </tr>
+              <tr>
+                <td>Competition launch</td>
+                <td><span class="tag warning">TBD</span></td>
+                <td>Depends on NeurIPS decision, data readiness, and platform setup.</td>
+              </tr>
+              <tr>
+                <td>Final submission and reproducibility checks</td>
+                <td><span class="tag warning">TBD</span></td>
+                <td>Policy and compute resources to be finalized.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="faq" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>Pre-launch questions</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Is the final real dataset available?</summary>
+            <p>
+              Not yet. This repository contains a small runnable example and participant tools.
+              Final ontology versions, counts, and download links are TBD.
+            </p>
+          </details>
+          <details>
+            <summary>Will participants need OWL expertise?</summary>
+            <p>
+              No. The challenge interface is graph-learning-ready: triples, node properties, Datalog rules,
+              and candidate TSV files. Ontology-specific background will be documented for participants who want it.
+            </p>
+          </details>
+          <details>
+            <summary>Can external biomedical resources be used?</summary>
+            <p>
+              The draft plan allows public, cited, and declared external resources. The final policy is TBD
+              and will be published before launch.
+            </p>
+          </details>
+          <details>
+            <summary>How is hidden ground truth protected?</summary>
+            <p>
+              Hidden test labels are not included in public candidate files, graph triples, released alignments,
+              or Datalog rules. The official scorer will keep hidden answers server-side.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section id="organizers" class="band alt">
+        <div class="section-heading">
+          <p class="eyebrow">Organizers</p>
+          <h2>Team and contact</h2>
+        </div>
+        <div class="two-col">
+          <p>
+            The organizing team will combine expertise in ontology matching, biomedical ontologies,
+            knowledge graph alignment, machine learning, neuro-symbolic reasoning, software engineering,
+            and benchmark evaluation.
+          </p>
+          <p>
+            Organizer names, affiliations, dedicated contact email, sponsors, awards, and platform
+            administrators are <span class="tag warning">TBD</span>.
+          </p>
+        </div>
+        <div class="contact-panel">
+          <div>
+            <strong>Dedicated email</strong>
+            <span><span class="tag warning">TBD</span></span>
+          </div>
+          <div>
+            <strong>Repository</strong>
+            <span><span class="tag warning">TBD</span> This repository, once public.</span>
+          </div>
+          <div>
+            <strong>Issue tracker or forum</strong>
+            <span><span class="tag warning">TBD</span></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        BioKG-Align is a pre-launch challenge draft. Final data, rules, dates, platform, and contact
+        information will be announced after readiness and licensing review.
+      </p>
+    </footer>
+  </body>
+</html>

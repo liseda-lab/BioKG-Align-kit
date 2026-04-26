@@ -1,0 +1,15 @@
+[project]
+name = "biokg-align-kit"
+version = "0.1.0"
+description = "Participant starting kit for the BioKG-Align challenge."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "BioKG-Align organizers"}]
+
+[project.scripts]
+biokg-align-kit = "biokg_align_kit.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

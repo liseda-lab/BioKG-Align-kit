@@ -1,0 +1,6 @@
+node_id,ontology,iri,local_id,preferred_label,synonyms,definition,semantic_category,source_version
+NCIT:C001,NCIT,https://example.org/NCIT/C001,C001,Lung cancer,Pulmonary cancer,Synthetic example concept.,disease,mini
+NCIT:C002,NCIT,https://example.org/NCIT/C002,C002,Breast carcinoma,Cancer of breast,Synthetic example concept.,disease,mini
+DOID:D001,DOID,https://example.org/DOID/D001,D001,Lung cancer,Cancer of lung,Synthetic example concept.,disease,mini
+DOID:D002,DOID,https://example.org/DOID/D002,D002,Breast cancer,Breast carcinoma,Synthetic example concept.,disease,mini
+DOID:D003,DOID,https://example.org/DOID/D003,D003,Pneumonia,Inflammatory lung disease,Synthetic example concept.,disease,mini
