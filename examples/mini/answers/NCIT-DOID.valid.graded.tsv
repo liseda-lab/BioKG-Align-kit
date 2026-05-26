@@ -1,0 +1,9 @@
+SrcEntity	QueryID	TgtEntity	Relation	Gain
+NCIT:C001	Q0	DOID:D000	source_subsumed_by_target	0.300000
+NCIT:C001	Q0	DOID:D001	equivalent	1.000000
+NCIT:C001	Q0	DOID:D001	source_subsumed_by_target	0.600000
+NCIT:C001	Q0	DOID:D001	source_subsumes_target	0.600000
+NCIT:C002	Q0	DOID:D000	source_subsumed_by_target	0.300000
+NCIT:C002	Q0	DOID:D002	equivalent	1.000000
+NCIT:C002	Q0	DOID:D002	source_subsumed_by_target	0.600000
+NCIT:C002	Q0	DOID:D002	source_subsumes_target	0.600000

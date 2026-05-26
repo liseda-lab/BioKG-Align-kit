@@ -1,0 +1,154 @@
+node_id,ontology,iri,local_id,preferred_label,synonyms,definition,semantic_category,source_version
+NCIT:C001,NCIT,https://example.org/NCIT/C001,C001,Synthetic NCIT concept C001,,Synthetic source concept.,disease,canonical
+NCIT:C002,NCIT,https://example.org/NCIT/C002,C002,Synthetic NCIT concept C002,,Synthetic source concept.,disease,canonical
+NCIT:C003,NCIT,https://example.org/NCIT/C003,C003,Synthetic NCIT concept C003,,Synthetic source concept.,disease,canonical
+DOID:D001,DOID,https://example.org/DOID/D001,D001,DOID class D001 (gold),,Synthetic DOID concept.,disease,canonical
+DOID:PD001,DOID,https://example.org/DOID/PD001,PD001,DOID parent of D001,,Synthetic DOID concept.,disease,canonical
+DOID:GD001,DOID,https://example.org/DOID/GD001,GD001,DOID grandparent of D001,,Synthetic DOID concept.,disease,canonical
+DOID:RD001,DOID,https://example.org/DOID/RD001,RD001,DOID root above D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_1,DOID,https://example.org/DOID/CD001_1,CD001_1,DOID child 1 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_1_1,DOID,https://example.org/DOID/CD001_1_1,CD001_1_1,DOID grandchild 1 of child 1 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_1_2,DOID,https://example.org/DOID/CD001_1_2,CD001_1_2,DOID grandchild 2 of child 1 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_2,DOID,https://example.org/DOID/CD001_2,CD001_2,DOID child 2 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_2_1,DOID,https://example.org/DOID/CD001_2_1,CD001_2_1,DOID grandchild 1 of child 2 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_2_2,DOID,https://example.org/DOID/CD001_2_2,CD001_2_2,DOID grandchild 2 of child 2 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_3,DOID,https://example.org/DOID/CD001_3,CD001_3,DOID child 3 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_3_1,DOID,https://example.org/DOID/CD001_3_1,CD001_3_1,DOID grandchild 1 of child 3 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:CD001_3_2,DOID,https://example.org/DOID/CD001_3_2,CD001_3_2,DOID grandchild 2 of child 3 of D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_01,DOID,https://example.org/DOID/XD001_01,XD001_01,DOID distractor 1 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_02,DOID,https://example.org/DOID/XD001_02,XD001_02,DOID distractor 2 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_03,DOID,https://example.org/DOID/XD001_03,XD001_03,DOID distractor 3 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_04,DOID,https://example.org/DOID/XD001_04,XD001_04,DOID distractor 4 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_05,DOID,https://example.org/DOID/XD001_05,XD001_05,DOID distractor 5 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_06,DOID,https://example.org/DOID/XD001_06,XD001_06,DOID distractor 6 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_07,DOID,https://example.org/DOID/XD001_07,XD001_07,DOID distractor 7 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_08,DOID,https://example.org/DOID/XD001_08,XD001_08,DOID distractor 8 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_09,DOID,https://example.org/DOID/XD001_09,XD001_09,DOID distractor 9 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_10,DOID,https://example.org/DOID/XD001_10,XD001_10,DOID distractor 10 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_11,DOID,https://example.org/DOID/XD001_11,XD001_11,DOID distractor 11 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_12,DOID,https://example.org/DOID/XD001_12,XD001_12,DOID distractor 12 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_13,DOID,https://example.org/DOID/XD001_13,XD001_13,DOID distractor 13 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_14,DOID,https://example.org/DOID/XD001_14,XD001_14,DOID distractor 14 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_15,DOID,https://example.org/DOID/XD001_15,XD001_15,DOID distractor 15 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_16,DOID,https://example.org/DOID/XD001_16,XD001_16,DOID distractor 16 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_17,DOID,https://example.org/DOID/XD001_17,XD001_17,DOID distractor 17 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_18,DOID,https://example.org/DOID/XD001_18,XD001_18,DOID distractor 18 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_19,DOID,https://example.org/DOID/XD001_19,XD001_19,DOID distractor 19 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_20,DOID,https://example.org/DOID/XD001_20,XD001_20,DOID distractor 20 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_21,DOID,https://example.org/DOID/XD001_21,XD001_21,DOID distractor 21 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_22,DOID,https://example.org/DOID/XD001_22,XD001_22,DOID distractor 22 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_23,DOID,https://example.org/DOID/XD001_23,XD001_23,DOID distractor 23 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_24,DOID,https://example.org/DOID/XD001_24,XD001_24,DOID distractor 24 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_25,DOID,https://example.org/DOID/XD001_25,XD001_25,DOID distractor 25 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_26,DOID,https://example.org/DOID/XD001_26,XD001_26,DOID distractor 26 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_27,DOID,https://example.org/DOID/XD001_27,XD001_27,DOID distractor 27 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_28,DOID,https://example.org/DOID/XD001_28,XD001_28,DOID distractor 28 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_29,DOID,https://example.org/DOID/XD001_29,XD001_29,DOID distractor 29 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_30,DOID,https://example.org/DOID/XD001_30,XD001_30,DOID distractor 30 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_31,DOID,https://example.org/DOID/XD001_31,XD001_31,DOID distractor 31 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_32,DOID,https://example.org/DOID/XD001_32,XD001_32,DOID distractor 32 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_33,DOID,https://example.org/DOID/XD001_33,XD001_33,DOID distractor 33 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_34,DOID,https://example.org/DOID/XD001_34,XD001_34,DOID distractor 34 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_35,DOID,https://example.org/DOID/XD001_35,XD001_35,DOID distractor 35 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_36,DOID,https://example.org/DOID/XD001_36,XD001_36,DOID distractor 36 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:XD001_37,DOID,https://example.org/DOID/XD001_37,XD001_37,DOID distractor 37 for D001,,Synthetic DOID concept.,disease,canonical
+DOID:D002,DOID,https://example.org/DOID/D002,D002,DOID class D002 (gold),,Synthetic DOID concept.,disease,canonical
+DOID:PD002,DOID,https://example.org/DOID/PD002,PD002,DOID parent of D002,,Synthetic DOID concept.,disease,canonical
+DOID:GD002,DOID,https://example.org/DOID/GD002,GD002,DOID grandparent of D002,,Synthetic DOID concept.,disease,canonical
+DOID:RD002,DOID,https://example.org/DOID/RD002,RD002,DOID root above D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_1,DOID,https://example.org/DOID/CD002_1,CD002_1,DOID child 1 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_1_1,DOID,https://example.org/DOID/CD002_1_1,CD002_1_1,DOID grandchild 1 of child 1 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_1_2,DOID,https://example.org/DOID/CD002_1_2,CD002_1_2,DOID grandchild 2 of child 1 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_2,DOID,https://example.org/DOID/CD002_2,CD002_2,DOID child 2 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_2_1,DOID,https://example.org/DOID/CD002_2_1,CD002_2_1,DOID grandchild 1 of child 2 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_2_2,DOID,https://example.org/DOID/CD002_2_2,CD002_2_2,DOID grandchild 2 of child 2 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_3,DOID,https://example.org/DOID/CD002_3,CD002_3,DOID child 3 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_3_1,DOID,https://example.org/DOID/CD002_3_1,CD002_3_1,DOID grandchild 1 of child 3 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:CD002_3_2,DOID,https://example.org/DOID/CD002_3_2,CD002_3_2,DOID grandchild 2 of child 3 of D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_01,DOID,https://example.org/DOID/XD002_01,XD002_01,DOID distractor 1 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_02,DOID,https://example.org/DOID/XD002_02,XD002_02,DOID distractor 2 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_03,DOID,https://example.org/DOID/XD002_03,XD002_03,DOID distractor 3 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_04,DOID,https://example.org/DOID/XD002_04,XD002_04,DOID distractor 4 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_05,DOID,https://example.org/DOID/XD002_05,XD002_05,DOID distractor 5 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_06,DOID,https://example.org/DOID/XD002_06,XD002_06,DOID distractor 6 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_07,DOID,https://example.org/DOID/XD002_07,XD002_07,DOID distractor 7 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_08,DOID,https://example.org/DOID/XD002_08,XD002_08,DOID distractor 8 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_09,DOID,https://example.org/DOID/XD002_09,XD002_09,DOID distractor 9 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_10,DOID,https://example.org/DOID/XD002_10,XD002_10,DOID distractor 10 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_11,DOID,https://example.org/DOID/XD002_11,XD002_11,DOID distractor 11 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_12,DOID,https://example.org/DOID/XD002_12,XD002_12,DOID distractor 12 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_13,DOID,https://example.org/DOID/XD002_13,XD002_13,DOID distractor 13 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_14,DOID,https://example.org/DOID/XD002_14,XD002_14,DOID distractor 14 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_15,DOID,https://example.org/DOID/XD002_15,XD002_15,DOID distractor 15 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_16,DOID,https://example.org/DOID/XD002_16,XD002_16,DOID distractor 16 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_17,DOID,https://example.org/DOID/XD002_17,XD002_17,DOID distractor 17 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_18,DOID,https://example.org/DOID/XD002_18,XD002_18,DOID distractor 18 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_19,DOID,https://example.org/DOID/XD002_19,XD002_19,DOID distractor 19 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_20,DOID,https://example.org/DOID/XD002_20,XD002_20,DOID distractor 20 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_21,DOID,https://example.org/DOID/XD002_21,XD002_21,DOID distractor 21 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_22,DOID,https://example.org/DOID/XD002_22,XD002_22,DOID distractor 22 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_23,DOID,https://example.org/DOID/XD002_23,XD002_23,DOID distractor 23 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_24,DOID,https://example.org/DOID/XD002_24,XD002_24,DOID distractor 24 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_25,DOID,https://example.org/DOID/XD002_25,XD002_25,DOID distractor 25 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_26,DOID,https://example.org/DOID/XD002_26,XD002_26,DOID distractor 26 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_27,DOID,https://example.org/DOID/XD002_27,XD002_27,DOID distractor 27 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_28,DOID,https://example.org/DOID/XD002_28,XD002_28,DOID distractor 28 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_29,DOID,https://example.org/DOID/XD002_29,XD002_29,DOID distractor 29 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_30,DOID,https://example.org/DOID/XD002_30,XD002_30,DOID distractor 30 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_31,DOID,https://example.org/DOID/XD002_31,XD002_31,DOID distractor 31 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_32,DOID,https://example.org/DOID/XD002_32,XD002_32,DOID distractor 32 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_33,DOID,https://example.org/DOID/XD002_33,XD002_33,DOID distractor 33 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_34,DOID,https://example.org/DOID/XD002_34,XD002_34,DOID distractor 34 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_35,DOID,https://example.org/DOID/XD002_35,XD002_35,DOID distractor 35 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_36,DOID,https://example.org/DOID/XD002_36,XD002_36,DOID distractor 36 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:XD002_37,DOID,https://example.org/DOID/XD002_37,XD002_37,DOID distractor 37 for D002,,Synthetic DOID concept.,disease,canonical
+DOID:D003,DOID,https://example.org/DOID/D003,D003,DOID class D003 (gold),,Synthetic DOID concept.,disease,canonical
+DOID:PD003,DOID,https://example.org/DOID/PD003,PD003,DOID parent of D003,,Synthetic DOID concept.,disease,canonical
+DOID:GD003,DOID,https://example.org/DOID/GD003,GD003,DOID grandparent of D003,,Synthetic DOID concept.,disease,canonical
+DOID:RD003,DOID,https://example.org/DOID/RD003,RD003,DOID root above D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_1,DOID,https://example.org/DOID/CD003_1,CD003_1,DOID child 1 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_1_1,DOID,https://example.org/DOID/CD003_1_1,CD003_1_1,DOID grandchild 1 of child 1 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_1_2,DOID,https://example.org/DOID/CD003_1_2,CD003_1_2,DOID grandchild 2 of child 1 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_2,DOID,https://example.org/DOID/CD003_2,CD003_2,DOID child 2 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_2_1,DOID,https://example.org/DOID/CD003_2_1,CD003_2_1,DOID grandchild 1 of child 2 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_2_2,DOID,https://example.org/DOID/CD003_2_2,CD003_2_2,DOID grandchild 2 of child 2 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_3,DOID,https://example.org/DOID/CD003_3,CD003_3,DOID child 3 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_3_1,DOID,https://example.org/DOID/CD003_3_1,CD003_3_1,DOID grandchild 1 of child 3 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:CD003_3_2,DOID,https://example.org/DOID/CD003_3_2,CD003_3_2,DOID grandchild 2 of child 3 of D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_01,DOID,https://example.org/DOID/XD003_01,XD003_01,DOID distractor 1 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_02,DOID,https://example.org/DOID/XD003_02,XD003_02,DOID distractor 2 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_03,DOID,https://example.org/DOID/XD003_03,XD003_03,DOID distractor 3 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_04,DOID,https://example.org/DOID/XD003_04,XD003_04,DOID distractor 4 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_05,DOID,https://example.org/DOID/XD003_05,XD003_05,DOID distractor 5 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_06,DOID,https://example.org/DOID/XD003_06,XD003_06,DOID distractor 6 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_07,DOID,https://example.org/DOID/XD003_07,XD003_07,DOID distractor 7 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_08,DOID,https://example.org/DOID/XD003_08,XD003_08,DOID distractor 8 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_09,DOID,https://example.org/DOID/XD003_09,XD003_09,DOID distractor 9 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_10,DOID,https://example.org/DOID/XD003_10,XD003_10,DOID distractor 10 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_11,DOID,https://example.org/DOID/XD003_11,XD003_11,DOID distractor 11 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_12,DOID,https://example.org/DOID/XD003_12,XD003_12,DOID distractor 12 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_13,DOID,https://example.org/DOID/XD003_13,XD003_13,DOID distractor 13 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_14,DOID,https://example.org/DOID/XD003_14,XD003_14,DOID distractor 14 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_15,DOID,https://example.org/DOID/XD003_15,XD003_15,DOID distractor 15 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_16,DOID,https://example.org/DOID/XD003_16,XD003_16,DOID distractor 16 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_17,DOID,https://example.org/DOID/XD003_17,XD003_17,DOID distractor 17 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_18,DOID,https://example.org/DOID/XD003_18,XD003_18,DOID distractor 18 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_19,DOID,https://example.org/DOID/XD003_19,XD003_19,DOID distractor 19 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_20,DOID,https://example.org/DOID/XD003_20,XD003_20,DOID distractor 20 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_21,DOID,https://example.org/DOID/XD003_21,XD003_21,DOID distractor 21 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_22,DOID,https://example.org/DOID/XD003_22,XD003_22,DOID distractor 22 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_23,DOID,https://example.org/DOID/XD003_23,XD003_23,DOID distractor 23 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_24,DOID,https://example.org/DOID/XD003_24,XD003_24,DOID distractor 24 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_25,DOID,https://example.org/DOID/XD003_25,XD003_25,DOID distractor 25 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_26,DOID,https://example.org/DOID/XD003_26,XD003_26,DOID distractor 26 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_27,DOID,https://example.org/DOID/XD003_27,XD003_27,DOID distractor 27 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_28,DOID,https://example.org/DOID/XD003_28,XD003_28,DOID distractor 28 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_29,DOID,https://example.org/DOID/XD003_29,XD003_29,DOID distractor 29 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_30,DOID,https://example.org/DOID/XD003_30,XD003_30,DOID distractor 30 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_31,DOID,https://example.org/DOID/XD003_31,XD003_31,DOID distractor 31 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_32,DOID,https://example.org/DOID/XD003_32,XD003_32,DOID distractor 32 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_33,DOID,https://example.org/DOID/XD003_33,XD003_33,DOID distractor 33 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_34,DOID,https://example.org/DOID/XD003_34,XD003_34,DOID distractor 34 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_35,DOID,https://example.org/DOID/XD003_35,XD003_35,DOID distractor 35 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_36,DOID,https://example.org/DOID/XD003_36,XD003_36,DOID distractor 36 for D003,,Synthetic DOID concept.,disease,canonical
+DOID:XD003_37,DOID,https://example.org/DOID/XD003_37,XD003_37,DOID distractor 37 for D003,,Synthetic DOID concept.,disease,canonical
