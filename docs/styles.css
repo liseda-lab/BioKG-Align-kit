@@ -470,6 +470,25 @@ td {
   color: #6b3f00;
 }
 
+.callout {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid #c97b00;
+  border-radius: 6px;
+  margin: 1.4rem 0;
+  padding: 1rem 1.2rem;
+}
+
+.callout.warning {
+  background: #fff8ec;
+  border-left-color: #c97b00;
+}
+
+.callout strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
 .split-callout,
 .contact-panel {
   display: grid;

@@ -177,7 +177,7 @@ Within a block the 150 rows can appear in any order; the scorer indexes
 by `(TgtEntity, Relation)`.
 
 The official platform applies the following strictness rules per
-`documentation.md §4.4`:
+`documentation/block_scoring.md`:
 
 | Condition                                            | Behaviour       |
 |------------------------------------------------------|-----------------|

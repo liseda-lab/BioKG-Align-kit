@@ -45,7 +45,7 @@
           <div class="node node-b">DOID</div>
           <div class="node node-c">SNOMED</div>
           <div class="node node-d">FMA</div>
-          <div class="node node-e">OMIM</div>
+          <div class="node node-e">MONDO</div>
           <div class="node node-f">ORDO</div>
           <span class="edge edge-ab" aria-hidden="true"></span>
           <span class="edge edge-cd" aria-hidden="true"></span>
@@ -63,7 +63,7 @@
       <section class="status-strip" aria-label="Current readiness status">
         <div>
           <strong>Status</strong>
-          <span>Participant kit available; official dataset release in preparation.</span>
+          <span>Participant kit v0.2.0 available; official dataset release in preparation.</span>
         </div>
         <div>
           <strong>Platform</strong>
@@ -104,7 +104,8 @@
             <h3>Input</h3>
             <p>
               Each query provides a source entity, a target ontology, and a fixed list of target
-              candidates. The current scaffold uses exactly 30 candidates per query.
+              candidates. The official challenge uses exactly 50 candidates per query, giving
+              50 × 3 = 150 candidate-relation pairs per query that a system must score.
             </p>
           </article>
           <article class="card">
@@ -141,12 +142,6 @@
                 <td>NCIT</td>
                 <td>DOID</td>
                 <td>Disease and cancer concept alignment</td>
-              </tr>
-              <tr>
-                <td><code>OMIM-ORDO</code></td>
-                <td>OMIM</td>
-                <td>ORDO</td>
-                <td>Rare disease and inherited disorder alignment</td>
               </tr>
               <tr>
                 <td><code>SNOMED-FMA</code></td>
@@ -213,6 +208,16 @@
                 <td>Format documented; official candidate sets TBD.</td>
               </tr>
               <tr>
+                <td><code>tasks/*/{train,valid}.preferred.tsv</code></td>
+                <td>One preferred <code>(target, relation)</code> gold per query, derived organizer-side per paper §1.5. Drives the Preferred Relation-Aware MRR metric family.</td>
+                <td>Format documented; bundled with the public release.</td>
+              </tr>
+              <tr>
+                <td><code>tasks/*/{train,valid}.graded.tsv</code></td>
+                <td>Graded relevance gains over <code>(candidate, relation)</code> pairs, derived from preferred pairs and the target-ontology hierarchy. Drives the Hierarchy-Aware Typed nDCG@10 metric. Rebuildable locally via the kit's <code>build-graded-relevance</code> helper; an offline archive is also planned for Zenodo distribution.</td>
+                <td>Format documented; bundled with the public release.</td>
+              </tr>
+              <tr>
                 <td><code>evaluation/*</code></td>
                 <td>Sample submission, schema, and local scorer interface.</td>
                 <td>Kit command available; CodaBench integration in preparation.</td>
@@ -245,32 +250,54 @@
         </div>
         <div class="two-col">
           <p>
-            The primary leaderboard metric is planned to be macro-averaged relation-aware nDCG@10 across
-            ontology-pair tasks. A ranked item is relevant only if the target entity and relation type are
-            both correct.
+            The primary leaderboard metric is macro-averaged Preferred Relation-Aware MRR
+            across the three ontology-pair tasks. A ranked item is relevant only if the target
+            entity and the relation type both match the preferred gold typed pair for the query.
+            The secondary metric is macro-averaged Hierarchy-Aware Typed nDCG@10, which awards
+            graded partial credit to hierarchically adjacent candidates.
           </p>
           <p>
-            Secondary metrics from the current scaffold include MRR, Hits@1, Hits@5, Hits@10, MAP, and
-            macro-F1 over relation types. Confidence intervals and significance testing are
-            <span class="tag warning">TBD</span>.
+            Additional strict metrics (Preferred Typed Hits@1/5/10) and diagnostic metrics
+            (entity-only MRR, relation accuracy on the preferred entity, relation macro-F1)
+            are reported alongside the headline metrics. Confidence intervals and significance
+            testing are <span class="tag warning">TBD</span>.
           </p>
+        </div>
+        <div class="callout warning">
+          <strong>Local scores ≠ leaderboard scores.</strong>
+          The kit's local scorer reports both diagnostic metrics
+          (<code>diagnostic_*</code>; untyped MRR, binary-relevance nDCG@10,
+          top-1 macro-F1) and the headline metric families
+          (<code>preferred_typed_*</code> and <code>hierarchy_aware_typed_*</code>)
+          when the required answer-adjacent files
+          <code>*.preferred.tsv</code> and <code>*.graded.tsv</code> are
+          present. Diagnostic metrics are useful for quick iteration but
+          do <em>not</em> match the leaderboard. The public data release
+          will ship pre-computed <code>*.preferred.tsv</code> and
+          <code>*.graded.tsv</code> files for train and valid splits
+          alongside the candidate files; an offline graded-relevance
+          archive is also planned for Zenodo distribution. Until that
+          release lands, the kit's
+          <code>build-graded-relevance</code> CLI helper rebuilds the
+          graded-relevance file deterministically from preferred pairs,
+          candidates, and the target-ontology hierarchy.
         </div>
         <div class="metric-grid">
           <div class="metric">
             <strong>Primary</strong>
-            <span>relation-aware nDCG@10</span>
+            <span>Macro Preferred Relation-Aware MRR</span>
           </div>
           <div class="metric">
-            <strong>Ranking</strong>
-            <span>MRR, Hits@K, MAP</span>
+            <strong>Secondary</strong>
+            <span>Macro Hierarchy-Aware Typed nDCG@10</span>
           </div>
           <div class="metric">
-            <strong>Typing</strong>
-            <span>macro-F1 over relation types</span>
+            <strong>Strict</strong>
+            <span>Preferred Typed Hits@1, @5, @10</span>
           </div>
           <div class="metric">
-            <strong>Final checks</strong>
-            <span>code and environment reproducibility TBD</span>
+            <strong>Diagnostic</strong>
+            <span>entity-only MRR, relation macro-F1 on preferred entity</span>
           </div>
         </div>
       </section>
@@ -282,20 +309,20 @@
         </div>
         <div class="grid cards">
           <article class="card">
-            <h3>Lexical</h3>
-            <p>Ranks candidates using preferred labels, synonyms, and string similarity.</p>
+            <h3>Random</h3>
+            <p>Seeded PRNG scores per candidate-relation pair. Calibration anchor for diagnostic metrics; shipped in the kit.</p>
           </article>
           <article class="card">
             <h3>Hybrid lexical</h3>
-            <p>Combines lexical similarity with simple relation priors from the current scaffold.</p>
+            <p>Token-overlap and character-ngram similarity on labels and synonyms, with a small equivalence-relation bias. Shipped in the kit.</p>
           </article>
           <article class="card">
-            <h3>Graph embedding</h3>
-            <p><span class="tag warning">TBD</span> Planned baseline over graph triples and training anchors.</p>
+            <h3>Graph embedding (KGE)</h3>
+            <p>TransE, DistMult, RotatE, and ComplEx trained on the released graph triples. Predictions bundled in the public release.</p>
           </article>
           <article class="card">
             <h3>Text-enhanced</h3>
-            <p><span class="tag warning">TBD</span> Planned baseline using labels, synonyms, and definitions.</p>
+            <p>Word-embedding-based scoring over labels and synonyms. Predictions bundled in the public release.</p>
           </article>
           <article class="card">
             <h3>Rule-aware</h3>
@@ -406,7 +433,7 @@
               <tr>
                 <td>Starting kit release</td>
                 <td><span class="tag warning">TBD</span></td>
-                <td>Fixture pipeline and scorer scaffold exist; real baselines pending.</td>
+                <td>Kit v0.2.0 ready: scorer, validator, baselines, fixtures, and documentation complete. Awaiting dataset release for public distribution.</td>
               </tr>
               <tr>
                 <td>Beta test</td>
