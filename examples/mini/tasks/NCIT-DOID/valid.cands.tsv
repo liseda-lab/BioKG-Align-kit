@@ -1,3 +1,3 @@
-SrcEntity	TgtEntities	Relations	TgtCandidates
-NCIT:C001	['DOID:D001']	['equivalent']	['DOID:D001', 'DOID:D002', 'DOID:D003']
-NCIT:C002	['DOID:D002']	['equivalent']	['DOID:D001', 'DOID:D002', 'DOID:D003']
+SrcEntity	QueryID	GoldTarget	Relation	TgtEntities	Relations	TgtCandidates
+NCIT:C001	Q0	DOID:D001	equivalent	['DOID:D001']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
+NCIT:C002	Q0	DOID:D002	equivalent	['DOID:D002']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']

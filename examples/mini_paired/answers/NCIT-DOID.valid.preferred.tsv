@@ -1,0 +1,5 @@
+SrcEntity	QueryID	TgtEntity	Relation
+NCIT:C001	Q0	DOID:D001	equivalent
+NCIT:C001	Q1	DOID:D000	source_subsumed_by_target
+NCIT:C002	Q0	DOID:D002	equivalent
+NCIT:C002	Q1	DOID:D000	source_subsumed_by_target

@@ -1,0 +1,3 @@
+SrcEntity	QueryID	TgtEntity	Relation
+NCIT:C001	Q0	DOID:D001	equivalent
+NCIT:C002	Q0	DOID:D002	equivalent
