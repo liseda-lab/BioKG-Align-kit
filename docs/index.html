@@ -1,535 +1,300 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BioKG-Align Challenge</title>
-    <meta
-      name="description"
-      content="Pre-launch website draft for BioKG-Align, a biomedical knowledge graph alignment challenge."
-    >
-    <link rel="stylesheet" href="styles.css">
-  </head>
-  <body>
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="BioKG-Align home">
-        <span class="brand-mark" aria-hidden="true">B</span>
-        <span>BioKG-Align</span>
-      </a>
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="#task">Task</a>
-        <a href="#data">Data</a>
-        <a href="#evaluation">Evaluation</a>
-        <a href="#participate">Participate</a>
-        <a href="#faq">FAQ</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><script>
+    (function () {
+      try {
+        var t = localStorage.getItem("bka-theme");
+        if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script><meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; font-src 'self'; style-src 'self'; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#0c6a52" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)"><!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>BioKG-Align | Biomedical ontology alignment as typed link prediction</title>
+<meta name="generator" content="Jekyll v4.3.4" />
+<meta property="og:title" content="BioKG-Align" />
+<meta property="og:locale" content="en" />
+<meta name="description" content="A NeurIPS 2026 Competition Track reframing biomedical ontology alignment as typed link prediction over a unified knowledge graph." />
+<meta name="twitter:description" property="og:description" content="A NeurIPS 2026 Competition Track reframing biomedical ontology alignment as typed link prediction over a unified knowledge graph." />
+<link rel="canonical" href="https://biokg-align.lasige.di.ciencias.ulisboa.pt/" />
+<meta property="og:url" content="https://biokg-align.lasige.di.ciencias.ulisboa.pt/" />
+<meta property="og:site_name" content="BioKG-Align" />
+<meta property="og:image" content="https://biokg-align.lasige.di.ciencias.ulisboa.pt/assets/brand/og-card.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://biokg-align.lasige.di.ciencias.ulisboa.pt/assets/brand/og-card.png" />
+<meta name="twitter:title" content="BioKG-Align" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"A NeurIPS 2026 Competition Track reframing biomedical ontology alignment as typed link prediction over a unified knowledge graph.","headline":"BioKG-Align","image":"https://biokg-align.lasige.di.ciencias.ulisboa.pt/assets/brand/og-card.png","name":"BioKG-Align","url":"https://biokg-align.lasige.di.ciencias.ulisboa.pt/"}</script>
+<!-- End Jekyll SEO tag -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Event",
+  "name": "BioKG-Align",
+  "description": "A NeurIPS 2026 Competition Track reframing biomedical ontology alignment as typed link prediction over a unified knowledge graph.",
+  "url": "https://biokg-align.lasige.di.ciencias.ulisboa.pt/",
+  "about": "Biomedical ontology alignment as typed link prediction",
+  "eventStatus": "https://schema.org/EventScheduled"
+}
+</script><link rel="preload" href="/assets/fonts/public-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/fraunces-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+</head>
+
+<body class="flex min-h-screen flex-col">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="bg-accent-soft text-accent-ink border-b border-line">
+  <p class="mx-auto max-w-6xl px-4 py-2 text-center text-sm">Pre-launch — the competition is being finalised and details on this site may change.</p>
+</div>
+
+  <header class="sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center gap-5 px-4 py-3">
+    <a href="/" class="mr-auto no-underline" aria-label="BioKG-Align home"><span class="inline-flex items-center gap-2 font-display text-[1.18rem] font-semibold text-ink">
+  <svg class="text-accent" width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false">
+    <path d="M16 15 8 8M16 15l8-7M16 15v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="8" cy="8" r="3" fill="currentColor"/>
+    <circle cx="24" cy="8" r="3" fill="currentColor"/>
+    <circle cx="16" cy="25" r="3" fill="currentColor"/>
+    <circle cx="16" cy="15" r="2.4" fill="var(--surface)" stroke="currentColor" stroke-width="1.6"/>
+  </svg>
+  BioKG-Align
+</span>
+</a>
+
+    <nav class="hidden items-center gap-5 text-sm font-medium md:flex" aria-label="Primary"><a href="/task/" class="text-ink hover:text-accent-ink py-1">Task &amp; Evaluation</a><a href="/data/" class="text-ink hover:text-accent-ink py-1">Data</a><a href="/participate/" class="text-ink hover:text-accent-ink py-1">Participate</a><a href="/faq/" class="text-ink hover:text-accent-ink py-1">FAQ</a></nav>
+
+    <a class="btn btn-ghost hidden text-sm lg:inline-flex" href="/participate/">Starting kit</a>
+    <a class="btn btn-primary hidden text-sm md:inline-flex" href="/task/">Read the task</a>
+
+    <button id="theme-toggle" type="button" hidden aria-pressed="false" aria-label="Switch to dark theme"
+            class="grid h-10 w-10 place-items-center rounded-lg border border-line-strong text-ink hover:bg-surface-2">
+      <svg class="icon-moon h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="icon-sun h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+    </button>
+
+    <details class="nav-menu relative md:hidden">
+      <summary class="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-lg border border-line-strong text-ink" aria-label="Open menu">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </summary>
+      <nav class="absolute right-0 mt-2 flex w-56 flex-col gap-1 rounded-xl border border-line bg-surface p-3 text-sm font-medium shadow-lg" aria-label="Primary (mobile)">
+        <a href="/task/" class="text-ink hover:text-accent-ink py-1">Task &amp; Evaluation</a><a href="/data/" class="text-ink hover:text-accent-ink py-1">Data</a><a href="/participate/" class="text-ink hover:text-accent-ink py-1">Participate</a><a href="/faq/" class="text-ink hover:text-accent-ink py-1">FAQ</a>
+        <a class="btn btn-primary mt-2 justify-center text-sm" href="/task/">Read the task</a>
       </nav>
-    </header>
+    </details>
+  </div>
+</header>
 
-    <main id="top">
-      <section class="hero band">
-        <div class="hero-copy">
-          <p class="eyebrow">Pre-launch NeurIPS challenge draft</p>
-          <h1>BioKG-Align: Link Prediction and Typing over Ontology-Derived Biomedical Knowledge Graphs</h1>
-          <p class="lede">
-            BioKG-Align reframes biomedical ontology matching as relation-aware candidate ranking over
-            knowledge graphs. Systems receive a source entity and a fixed set of target candidates, then
-            rank candidate-relation pairs for equivalence or directional subsumption.
-          </p>
-          <div class="cta-row">
-            <a class="button primary" href="#participate">How to participate</a>
-            <a class="button secondary" href="#data">Review data format</a>
-          </div>
-        </div>
-        <div class="kg-visual" aria-label="Biomedical knowledge graph alignment motif">
-          <div class="node node-a">NCIT</div>
-          <div class="node node-b">DOID</div>
-          <div class="node node-c">SNOMED</div>
-          <div class="node node-d">FMA</div>
-          <div class="node node-e">MONDO</div>
-          <div class="node node-f">ORDO</div>
-          <span class="edge edge-ab" aria-hidden="true"></span>
-          <span class="edge edge-cd" aria-hidden="true"></span>
-          <span class="edge edge-ef" aria-hidden="true"></span>
-          <span class="edge edge-center-1" aria-hidden="true"></span>
-          <span class="edge edge-center-2" aria-hidden="true"></span>
-          <div class="motif-center">
-            <span>candidate</span>
-            <strong>relation</strong>
-            <span>ranking</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="status-strip" aria-label="Current readiness status">
-        <div>
-          <strong>Status</strong>
-          <span>Participant kit v0.2.0 available; official dataset release in preparation.</span>
-        </div>
-        <div>
-          <strong>Platform</strong>
-          <span><span class="tag">CodaBench</span> Competition bundle in preparation.</span>
-        </div>
-        <div>
-          <strong>Data host</strong>
-          <span><span class="tag warning">TBD</span> Candidate: Hugging Face Dataset with Zenodo DOI snapshot.</span>
-        </div>
-      </section>
-
-      <section id="overview" class="band">
-        <div class="section-heading">
-          <p class="eyebrow">Overview</p>
-          <h2>Biomedical alignment for graph, text, and neuro-symbolic methods</h2>
-        </div>
-        <div class="two-col">
-          <p>
-            Biomedical knowledge is distributed across independently developed ontologies and controlled
-            vocabularies. Aligning these resources supports search, data integration, clinical research,
-            machine learning, and auditable knowledge base construction.
-          </p>
-          <p>
-            The challenge exposes ontology alignment through a familiar machine learning interface:
-            typed link prediction over fixed candidate sets. Participants may use graph triples, node
-            properties, and optional Datalog rules derived from ontology structure.
-          </p>
-        </div>
-      </section>
-
-      <section id="task" class="band alt">
-        <div class="section-heading">
-          <p class="eyebrow">Task</p>
-          <h2>Rank candidate-relation pairs across ontology pairs</h2>
-        </div>
-        <div class="grid cards">
-          <article class="card">
-            <h3>Input</h3>
-            <p>
-              Each query provides a source entity, a target ontology, and a fixed list of target
-              candidates. The official challenge uses exactly 50 candidates per query, giving
-              50 × 3 = 150 candidate-relation pairs per query that a system must score.
-            </p>
-          </article>
-          <article class="card">
-            <h3>Output</h3>
-            <p>
-              Submissions score candidate-relation pairs using the official relation names:
-              <code>equivalent</code>, <code>source_subsumed_by_target</code>, and
-              <code>source_subsumes_target</code>.
-            </p>
-          </article>
-          <article class="card">
-            <h3>Correctness</h3>
-            <p>
-              A prediction is relevant only when both the target entity and the relation type match
-              the hidden reference alignment.
-            </p>
-          </article>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <caption>Planned ontology-pair tasks</caption>
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Source</th>
-                <th>Target</th>
-                <th>Current role</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>NCIT-DOID</code></td>
-                <td>NCIT</td>
-                <td>DOID</td>
-                <td>Disease and cancer concept alignment</td>
-              </tr>
-              <tr>
-                <td><code>SNOMED-FMA</code></td>
-                <td>SNOMED CT</td>
-                <td>FMA</td>
-                <td>Clinical anatomy to anatomy alignment</td>
-              </tr>
-              <tr>
-                <td><code>SNOMED-NCIT</code></td>
-                <td>SNOMED CT</td>
-                <td>NCIT</td>
-                <td>Clinical concept to cancer and disease alignment</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="data" class="band">
-        <div class="section-heading">
-          <p class="eyebrow">Data</p>
-          <h2>Public graph package plus hidden-label evaluation</h2>
-        </div>
-        <div class="notice">
-          <strong>Pre-launch note:</strong>
-          final ontology versions, licenses, file counts, train/validation/test sizes, and download URLs
-          are <span class="tag warning">TBD</span>. This public kit contains a tiny example dataset,
-          scorer, validator, baselines, and documentation; it does not generate the official dataset.
-        </div>
-        <div class="table-wrap">
-          <table>
-            <caption>Expected public release files</caption>
-            <thead>
-              <tr>
-                <th>Path</th>
-                <th>Purpose</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>graph/triples.csv</code></td>
-                <td>Typed intra-ontology graph triples and released training anchors.</td>
-                <td>Format documented; official release TBD.</td>
-              </tr>
-              <tr>
-                <td><code>graph/properties.csv</code></td>
-                <td>Node identifiers, ontology membership, labels, synonyms, definitions, and permitted metadata.</td>
-                <td>Format documented; license-cleared release TBD.</td>
-              </tr>
-              <tr>
-                <td><code>graph/rules.dl</code></td>
-                <td>Selected Datalog-compatible rules derived from ontology axioms.</td>
-                <td>Format documented; final rule projection TBD.</td>
-              </tr>
-              <tr>
-                <td><code>alignments/train.tsv</code>, <code>alignments/valid.tsv</code></td>
-                <td>Public supervised labels with relation types.</td>
-                <td>Format documented; final splits TBD.</td>
-              </tr>
-              <tr>
-                <td><code>tasks/*/*.cands.tsv</code></td>
-                <td>Candidate files for train, validation, and test queries.</td>
-                <td>Format documented; official candidate sets TBD.</td>
-              </tr>
-              <tr>
-                <td><code>tasks/*/{train,valid}.preferred.tsv</code></td>
-                <td>One preferred <code>(target, relation)</code> gold per query, derived organizer-side per paper §1.5. Drives the Preferred Relation-Aware MRR metric family.</td>
-                <td>Format documented; bundled with the public release.</td>
-              </tr>
-              <tr>
-                <td><code>tasks/*/{train,valid}.graded.tsv</code></td>
-                <td>Graded relevance gains over <code>(candidate, relation)</code> pairs, derived from preferred pairs and the target-ontology hierarchy. Drives the Hierarchy-Aware Typed nDCG@10 metric. Rebuildable locally via the kit's <code>build-graded-relevance</code> helper; an offline archive is also planned for Zenodo distribution.</td>
-                <td>Format documented; bundled with the public release.</td>
-              </tr>
-              <tr>
-                <td><code>evaluation/*</code></td>
-                <td>Sample submission, schema, and local scorer interface.</td>
-                <td>Kit command available; CodaBench integration in preparation.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="split-callout">
-          <div>
-            <h3>Public by design</h3>
-            <p>
-              Participants receive graph files, public train and validation labels, public candidate sets,
-              baseline code, documentation, manifests, and a local validation scorer.
-            </p>
-          </div>
-          <div>
-            <h3>Private by design</h3>
-            <p>
-              Hidden test answers, full hidden references, split construction details, licensed raw sources,
-              and official hidden scorer assets are not part of this public kit.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section id="evaluation" class="band alt">
-        <div class="section-heading">
-          <p class="eyebrow">Evaluation</p>
-          <h2>Relation-aware ranking with typed predictions</h2>
-        </div>
-        <div class="two-col">
-          <p>
-            The primary leaderboard metric is macro-averaged Preferred Relation-Aware MRR
-            across the three ontology-pair tasks. A ranked item is relevant only if the target
-            entity and the relation type both match the preferred gold typed pair for the query.
-            The secondary metric is macro-averaged Hierarchy-Aware Typed nDCG@10, which awards
-            graded partial credit to hierarchically adjacent candidates.
-          </p>
-          <p>
-            Additional strict metrics (Preferred Typed Hits@1/5/10) and diagnostic metrics
-            (entity-only MRR, relation accuracy on the preferred entity, relation macro-F1)
-            are reported alongside the headline metrics. Confidence intervals and significance
-            testing are <span class="tag warning">TBD</span>.
-          </p>
-        </div>
-        <div class="callout warning">
-          <strong>Local scores ≠ leaderboard scores.</strong>
-          The kit's local scorer reports both diagnostic metrics
-          (<code>diagnostic_*</code>; untyped MRR, binary-relevance nDCG@10,
-          top-1 macro-F1) and the headline metric families
-          (<code>preferred_typed_*</code> and <code>hierarchy_aware_typed_*</code>)
-          when the required answer-adjacent files
-          <code>*.preferred.tsv</code> and <code>*.graded.tsv</code> are
-          present. Diagnostic metrics are useful for quick iteration but
-          do <em>not</em> match the leaderboard. The public data release
-          will ship pre-computed <code>*.preferred.tsv</code> and
-          <code>*.graded.tsv</code> files for train and valid splits
-          alongside the candidate files; an offline graded-relevance
-          archive is also planned for Zenodo distribution. Until that
-          release lands, the kit's
-          <code>build-graded-relevance</code> CLI helper rebuilds the
-          graded-relevance file deterministically from preferred pairs,
-          candidates, and the target-ontology hierarchy.
-        </div>
-        <div class="metric-grid">
-          <div class="metric">
-            <strong>Primary</strong>
-            <span>Macro Preferred Relation-Aware MRR</span>
-          </div>
-          <div class="metric">
-            <strong>Secondary</strong>
-            <span>Macro Hierarchy-Aware Typed nDCG@10</span>
-          </div>
-          <div class="metric">
-            <strong>Strict</strong>
-            <span>Preferred Typed Hits@1, @5, @10</span>
-          </div>
-          <div class="metric">
-            <strong>Diagnostic</strong>
-            <span>entity-only MRR, relation macro-F1 on preferred entity</span>
-          </div>
-        </div>
-      </section>
-
-      <section id="baselines" class="band">
-        <div class="section-heading">
-          <p class="eyebrow">Baselines</p>
-          <h2>Starting points for several participant communities</h2>
-        </div>
-        <div class="grid cards">
-          <article class="card">
-            <h3>Random</h3>
-            <p>Seeded PRNG scores per candidate-relation pair. Calibration anchor for diagnostic metrics; shipped in the kit.</p>
-          </article>
-          <article class="card">
-            <h3>Hybrid lexical</h3>
-            <p>Token-overlap and character-ngram similarity on labels and synonyms, with a small equivalence-relation bias. Shipped in the kit.</p>
-          </article>
-          <article class="card">
-            <h3>Graph embedding (KGE)</h3>
-            <p>TransE, DistMult, RotatE, and ComplEx trained on the released graph triples. Predictions bundled in the public release.</p>
-          </article>
-          <article class="card">
-            <h3>Text-enhanced</h3>
-            <p>Word-embedding-based scoring over labels and synonyms. Predictions bundled in the public release.</p>
-          </article>
-          <article class="card">
-            <h3>Rule-aware</h3>
-            <p><span class="tag warning">TBD</span> Planned baseline demonstrating use of Datalog-derived features.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="participate" class="band alt">
-        <div class="section-heading">
-          <p class="eyebrow">Protocol</p>
-          <h2>Participation flow</h2>
-        </div>
-        <ol class="steps">
-          <li>
-            <strong>Register</strong>
-            <span>Competition platform <span class="tag">CodaBench</span>.</span>
-          </li>
-          <li>
-            <strong>Download data</strong>
-            <span>Public dataset URL <span class="tag warning">TBD</span>; candidate host is under review.</span>
-          </li>
-          <li>
-            <strong>Train and validate</strong>
-            <span>Use public graph files, training labels, validation labels, and the starting kit.</span>
-          </li>
-          <li>
-            <strong>Submit predictions</strong>
-            <span>Upload scored candidate-relation pairs in the official TSV format.</span>
-          </li>
-          <li>
-            <strong>Finalize</strong>
-            <span>Top teams will provide code, environment details, and reproduction instructions.</span>
-          </li>
-        </ol>
-        <div class="table-wrap">
-          <table>
-            <caption>Expected submission columns</caption>
-            <thead>
-              <tr>
-                <th>Column</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>SrcEntity</code></td>
-                <td>Source entity identifier from the query.</td>
-              </tr>
-              <tr>
-                <td><code>TgtEntity</code></td>
-                <td>One target entity from the provided candidate list.</td>
-              </tr>
-              <tr>
-                <td><code>Relation</code></td>
-                <td>One of the official relation names.</td>
-              </tr>
-              <tr>
-                <td><code>Score</code></td>
-                <td>Numeric confidence score used for ranking.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="rules" class="band">
-        <div class="section-heading">
-          <p class="eyebrow">Rules</p>
-          <h2>Draft contest rules</h2>
-        </div>
-        <ul class="rule-list">
-          <li>Participants must submit predictions in the official format.</li>
-          <li>Predictions must score only candidate entities provided in the evaluation files.</li>
-          <li>Released triples, node properties, Datalog rules, training anchors, and validation labels may be used.</li>
-          <li>External resources and pretrained models may be used if they are public, cited, and declared.</li>
-          <li>Hidden test labels, unpublished reference alignments, and manual annotation of the hidden test set are not allowed.</li>
-          <li>Final leaderboard submissions may require code and sufficient reproduction instructions.</li>
-          <li>Submitted systems are research prototypes and must not claim clinical validity.</li>
-        </ul>
-        <p class="small-note">
-          Final rules, external-resource policy, team limits, submission limits, and reproduction requirements
-          are <span class="tag warning">TBD</span>.
-        </p>
-      </section>
-
-      <section id="schedule" class="band alt">
-        <div class="section-heading">
-          <p class="eyebrow">Schedule</p>
-          <h2>Preparation timeline</h2>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <caption>Tentative schedule placeholders</caption>
-            <thead>
-              <tr>
-                <th>Phase</th>
-                <th>Target</th>
-                <th>Readiness</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Dataset and license finalization</td>
-                <td><span class="tag warning">TBD</span></td>
-                <td>Ontology versions, redistribution plan, and source permissions under review.</td>
-              </tr>
-              <tr>
-                <td>Starting kit release</td>
-                <td><span class="tag warning">TBD</span></td>
-                <td>Kit v0.2.0 ready: scorer, validator, baselines, fixtures, and documentation complete. Awaiting dataset release for public distribution.</td>
-              </tr>
-              <tr>
-                <td>Beta test</td>
-                <td><span class="tag warning">TBD</span></td>
-                <td>Planned with ontology matching, KG learning, and neuro-symbolic reviewers.</td>
-              </tr>
-              <tr>
-                <td>Competition launch</td>
-                <td><span class="tag warning">TBD</span></td>
-                <td>Depends on NeurIPS decision, data readiness, and platform setup.</td>
-              </tr>
-              <tr>
-                <td>Final submission and reproducibility checks</td>
-                <td><span class="tag warning">TBD</span></td>
-                <td>Policy and compute resources to be finalized.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="faq" class="band">
-        <div class="section-heading">
-          <p class="eyebrow">FAQ</p>
-          <h2>Pre-launch questions</h2>
-        </div>
-        <div class="faq-list">
-          <details>
-            <summary>Is the final real dataset available?</summary>
-            <p>
-              Not yet. This repository contains a small runnable example and participant tools.
-              Final ontology versions, counts, and download links are TBD.
-            </p>
-          </details>
-          <details>
-            <summary>Will participants need OWL expertise?</summary>
-            <p>
-              No. The challenge interface is graph-learning-ready: triples, node properties, Datalog rules,
-              and candidate TSV files. Ontology-specific background will be documented for participants who want it.
-            </p>
-          </details>
-          <details>
-            <summary>Can external biomedical resources be used?</summary>
-            <p>
-              The draft plan allows public, cited, and declared external resources. The final policy is TBD
-              and will be published before launch.
-            </p>
-          </details>
-          <details>
-            <summary>How is hidden ground truth protected?</summary>
-            <p>
-              Hidden test labels are not included in public candidate files, graph triples, released alignments,
-              or Datalog rules. The official scorer will keep hidden answers server-side.
-            </p>
-          </details>
-        </div>
-      </section>
-
-      <section id="organizers" class="band alt">
-        <div class="section-heading">
-          <p class="eyebrow">Organizers</p>
-          <h2>Team and contact</h2>
-        </div>
-        <div class="two-col">
-          <p>
-            The organizing team will combine expertise in ontology matching, biomedical ontologies,
-            knowledge graph alignment, machine learning, neuro-symbolic reasoning, software engineering,
-            and benchmark evaluation.
-          </p>
-          <p>
-            Organizer names, affiliations, dedicated contact email, sponsors, awards, and platform
-            administrators are <span class="tag warning">TBD</span>.
-          </p>
-        </div>
-        <div class="contact-panel">
-          <div>
-            <strong>Dedicated email</strong>
-            <span><span class="tag warning">TBD</span></span>
-          </div>
-          <div>
-            <strong>Repository</strong>
-            <span><span class="tag warning">TBD</span> This repository, once public.</span>
-          </div>
-          <div>
-            <strong>Issue tracker or forum</strong>
-            <span><span class="tag warning">TBD</span></span>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <p>
-        BioKG-Align is a pre-launch challenge draft. Final data, rules, dates, platform, and contact
-        information will be announced after readiness and licensing review.
+  <main id="main" tabindex="-1" class="flex-1">
+    <section class="mx-auto max-w-6xl px-4 py-12 md:py-16">
+  <div class="grid items-center gap-10 md:grid-cols-2">
+    <div>
+      <span class="eyebrow">NeurIPS 2026 Competition Track Proposal</span>
+      <h1 class="mt-4 text-4xl md:text-5xl">Biomedical ontology alignment as typed link prediction</h1>
+      <p class="mt-4 max-w-[46ch] text-lg text-muted">
+        Systems receive a source concept and a fixed set of target candidates, then
+        rank candidate–relation pairs for equivalence or directional subsumption —
+        one familiar interface for graph, text, and neuro-symbolic methods.
       </p>
-    </footer>
-  </body>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a class="btn btn-primary" href="/task/">Read the task</a>
+        <a class="btn btn-ghost" href="/participate/">Starting kit</a>
+      </div>
+    </div>
+
+    <div class="card" role="group" aria-label="Worked example: ranking DOID candidates for the NCIT concept melanoma">
+      <div class="flex flex-wrap items-center gap-3 border-b border-line pb-3">
+        <div class="flex-1">
+          <div class="font-mono text-[0.66rem] uppercase tracking-wider text-muted">Source query</div>
+          <div class="mt-1"><span class="onto-pill mr-2">NCIT</span><span class="font-semibold">melanoma</span></div>
+        </div>
+        <span aria-hidden="true" class="text-muted">→</span>
+        <div class="flex-1">
+          <div class="font-mono text-[0.66rem] uppercase tracking-wider text-muted">Ranked candidates · DOID</div>
+          <div class="mt-1 text-sm text-muted">each scored, each typed by relation</div>
+        </div>
+      </div>
+
+      <div class="my-3 flex flex-wrap gap-4 text-xs text-muted" aria-hidden="true"><span><span class="font-mono text-ink">≡</span> equivalent</span><span><span class="font-mono text-ink">⊑</span> subsumed by</span><span><span class="font-mono text-ink">⊒</span> subsumes</span></div>
+
+      <fieldset class="space-y-2 m-0 border-0 p-0">
+        <legend class="sr-only">Candidate targets — select one to see why it matches or not</legend><label class="demo-candidate">
+          <input type="radio" name="demo-candidate" class="sr-only" checked data-explanation="Source and target denote the same disease. Under the preferred typed metric this is the only fully relevant prediction — entity and relation both match the reference — so a strong system ranks it first.">
+          <span class="w-4 font-mono text-sm text-muted">1</span>
+          <span class="min-w-0 flex-1"><span class="onto-pill mr-2">DOID</span>melanoma</span>
+          <span class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"><span class="font-mono text-ink" aria-hidden="true">≡</span>equivalent</span>
+          <span class="tag tag-exact">exact</span>
+        </label><label class="demo-candidate">
+          <input type="radio" name="demo-candidate" class="sr-only"  data-explanation="Melanoma is broader than cutaneous melanoma, so the source subsumes this target. Not the exact match, but an ontologically close neighbour — the hierarchy-aware metric awards graded credit by distance.">
+          <span class="w-4 font-mono text-sm text-muted">2</span>
+          <span class="min-w-0 flex-1"><span class="onto-pill mr-2">DOID</span>cutaneous melanoma</span>
+          <span class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"><span class="font-mono text-ink" aria-hidden="true">⊒</span>subsumes</span>
+          <span class="tag tag-near">near</span>
+        </label><label class="demo-candidate">
+          <input type="radio" name="demo-candidate" class="sr-only"  data-explanation="A melanocytic nevus is a benign mole — neither equivalent to nor a sub- or super-class of melanoma. A distractor: no credit, and ranking it this high pushes a genuine neighbour down.">
+          <span class="w-4 font-mono text-sm text-muted">3</span>
+          <span class="min-w-0 flex-1"><span class="onto-pill mr-2">DOID</span>melanocytic nevus</span>
+          <span class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"><span class="font-mono text-ink" aria-hidden="true">≡</span>equivalent</span>
+          <span class="tag tag-miss">miss</span>
+        </label><label class="demo-candidate">
+          <input type="radio" name="demo-candidate" class="sr-only"  data-explanation="Melanoma is a kind of skin cancer, so the source is subsumed by this target. A correct neighbour earning graded credit, ranked below a distractor here.">
+          <span class="w-4 font-mono text-sm text-muted">4</span>
+          <span class="min-w-0 flex-1"><span class="onto-pill mr-2">DOID</span>skin cancer</span>
+          <span class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"><span class="font-mono text-ink" aria-hidden="true">⊑</span>subsumed by</span>
+          <span class="tag tag-near">near</span>
+        </label></fieldset>
+
+      <p id="demo-explanation" aria-live="polite" class="mt-3 rounded-lg bg-surface-2 p-3 text-sm text-muted">Source and target denote the same disease. Under the preferred typed metric this is the only fully relevant prediction — entity and relation both match the reference — so a strong system ranks it first.</p>
+      <p class="mt-2 text-xs text-muted">Illustrative example (NCIT → DOID). The live site renders from the public release; hidden test data is never shown.</p>
+    </div>
+  </div>
+</section>
+
+<section class="border-y border-line bg-surface-2" aria-label="Track ontologies">
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-4 text-sm text-muted">
+    <span class="font-mono text-xs uppercase tracking-wider text-muted">Track ontologies</span><span class="onto-pill">NCI Thesaurus</span><span class="onto-pill">Human Disease Ontology</span><span class="onto-pill">Orphanet Rare Disease Ontology</span><span class="onto-pill">SNOMED CT</span><span class="onto-pill">Foundational Model of Anatomy</span></div>
+</section>
+
+<section class="mx-auto max-w-6xl px-4 py-12 md:py-16">
+  <div class="grid items-start gap-10 md:grid-cols-2">
+    <div>
+      <span class="eyebrow">At a glance (main track)</span>
+      <h2 class="mt-3 text-2xl">One graph, three tasks, two primary metrics</h2>
+      <p class="mt-3 text-sm text-muted">BioKG-Align runs two tracks — the main track, summarised here, and a complex track on OWL class-expression generation (<a href="/faq/">more in the FAQ</a>).</p>
+      <dl class="mt-6 space-y-4">
+        <div>
+          <dt class="font-semibold text-ink">5 track ontologies</dt>
+          <dd class="text-sm text-muted">NCIT, DOID, ORDO, SNOMED, FMA — projected into one knowledge graph.</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">3 task pairs</dt>
+          <dd class="text-sm text-muted"><code>NCIT-DOID</code>, <code>SNOMED-FMA</code>, <code>SNOMED-NCIT</code>.</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">Primary metrics</dt>
+          <dd class="text-sm text-muted">Preferred Typed (Relation-Aware) MRR and Hierarchy-Aware Typed nDCG@10.</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">Candidate sets</dt>
+          <dd class="text-sm text-muted">50 target candidates × 3 relations = 150 scored rows per query.</dd>
+        </div>
+        <div>
+          <dt class="font-semibold text-ink">Three methodological entry points</dt>
+          <dd class="text-sm text-muted">Triples → + node properties → + Datalog rules — graph, text, and neuro-symbolic methods.</dd>
+        </div>
+      </dl>
+    </div>
+    <div>
+      <div class="card">
+        <svg class="kg-motif w-full h-auto" viewBox="0 0 340 232" fill="none" aria-hidden="true" focusable="false">
+  <g stroke="var(--line-strong)" stroke-width="1.4">
+    <path d="M170 26 260 91 226 196 114 196 80 91Z"/>
+    <path d="M170 26 226 196M170 26 114 196M80 91 260 91"/>
+  </g><g data-onto="NCIT">
+      <circle cx="170" cy="26" r="15" fill="var(--onto-ncit)"/>
+      <text x="170" y="56" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--ink)">NCIT</text>
+    </g><g data-onto="DOID">
+      <circle cx="260" cy="91" r="15" fill="var(--onto-doid)"/>
+      <text x="260" y="121" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--ink)">DOID</text>
+    </g><g data-onto="ORDO">
+      <circle cx="226" cy="196" r="15" fill="var(--onto-ordo)"/>
+      <text x="226" y="226" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--ink)">ORDO</text>
+    </g><g data-onto="SNOMED">
+      <circle cx="114" cy="196" r="15" fill="var(--onto-snomed)"/>
+      <text x="114" y="226" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--ink)">SNOMED</text>
+    </g><g data-onto="FMA">
+      <circle cx="80" cy="91" r="15" fill="var(--onto-fma)"/>
+      <text x="80" y="121" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--ink)">FMA</text>
+    </g></svg>
+
+        <p class="mt-2 text-center text-xs text-muted">The unified graph spans five projected ontologies.</p>
+      </div>
+      <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="rounded-lg border border-line bg-surface p-3">
+          <dt class="font-mono text-[0.66rem] uppercase tracking-wider text-muted">Input</dt>
+          <dd class="mt-1 text-sm text-ink">A source entity and a fixed candidate set, per query.</dd>
+        </div>
+        <div class="rounded-lg border border-line bg-surface p-3">
+          <dt class="font-mono text-[0.66rem] uppercase tracking-wider text-muted">Output</dt>
+          <dd class="mt-1 text-sm text-ink">A ranked list of (candidate, relation) pairs.</dd>
+        </div>
+        <div class="rounded-lg border border-line bg-surface p-3">
+          <dt class="font-mono text-[0.66rem] uppercase tracking-wider text-muted">Correctness</dt>
+          <dd class="mt-1 text-sm text-ink">A hit needs both the target entity and the relation to match the hidden reference.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="border-y border-line bg-surface-2">
+  <div class="mx-auto max-w-6xl px-4 py-12 md:py-16">
+    <span class="eyebrow">Status &amp; schedule</span>
+    <h2 class="mt-3 text-2xl">Current competition status</h2>
+    <p class="mt-4 text-muted"><span class="font-semibold text-ink">Status:</span> In preparation</p><dl class="mt-6 space-y-3"><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+        <dt class="text-muted">Starting Kit Release</dt>
+        <dd class="text-ink">Late May 2026</dd>
+      </div><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+        <dt class="text-muted">Dataset Publication</dt>
+        <dd class="text-ink">Early June 2026</dd>
+      </div><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+        <dt class="text-muted">Competition Proposal Acceptance Decision</dt>
+        <dd class="text-ink">Mid June 2026</dd>
+      </div><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+        <dt class="text-muted">Competition Starts, Leaderboard Opens</dt>
+        <dd class="text-ink">Late June 2026 <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></dd>
+      </div><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+        <dt class="text-muted">Competition Ends</dt>
+        <dd class="text-ink">Late October 2026 <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></dd>
+      </div></dl></div>
+</section>
+
+  </main>
+  <footer class="border-t border-line">
+  <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 md:grid-cols-4">
+    <div>
+      <p class="font-display text-lg font-semibold text-ink">BioKG-Align</p>
+      <p class="mt-2 max-w-[34ch] text-sm text-muted">Biomedical ontology alignment as typed link prediction. A NeurIPS 2026 Competition Track Proposal.</p>
+    </div>
+    <nav aria-label="Site map">
+      <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Explore</h2>
+      <ul class="mt-3 space-y-2 text-sm">
+        <li><a href="/">Home</a></li>
+        <li><a href="/task/">Task &amp; Evaluation</a></li>
+        <li><a href="/data/">Data</a></li>
+        <li><a href="/participate/">Participate</a></li>
+        <li><a href="/faq/">FAQ</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Policies">
+      <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Site</h2>
+      <ul class="mt-3 space-y-2 text-sm">
+        <li><a href="/privacy/">Privacy note</a></li>
+        <li><a href="/accessibility/">Accessibility statement</a></li>
+      </ul>
+    </nav>
+    <div>
+      <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Project</h2>
+      <ul class="mt-3 space-y-2 text-sm text-muted">
+        <li><a href="/organisers/">Organisers</a></li>
+        <li>Licence</li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/extended_documentation/README.md">Documents v0.2.0-rc3</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="mx-auto max-w-6xl px-4 pb-12">
+    <p class="border-t border-line pt-6 text-xs text-muted">
+      Last updated 2 June 2026. Pre-launch draft — final data,
+      rules, dates, platform, and contact are announced after readiness and licensing
+      review. Systems are research prototypes and must not claim clinical validity.
+    </p>
+  </div>
+</footer>
+
+  <script src="/assets/js/theme-toggle.js" defer></script><script src="/assets/js/hero-demo.js" defer></script></body>
 </html>
