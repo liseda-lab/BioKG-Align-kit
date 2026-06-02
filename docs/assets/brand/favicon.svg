@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="BioKG-Align">
+  <rect width="32" height="32" rx="7" fill="#0c6a52"/>
+  <g fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round">
+    <path d="M16 15 8 8M16 15l8-7M16 15v10"/>
+  </g>
+  <circle cx="8" cy="8" r="3" fill="#ffffff"/>
+  <circle cx="24" cy="8" r="3" fill="#ffffff"/>
+  <circle cx="16" cy="25" r="3" fill="#ffffff"/>
+  <circle cx="16" cy="15" r="2.6" fill="#0c6a52" stroke="#ffffff" stroke-width="1.7"/>
+</svg>

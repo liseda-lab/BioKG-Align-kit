@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://biokg-align.lasige.di.ciencias.ulisboa.pt/sitemap.xml
