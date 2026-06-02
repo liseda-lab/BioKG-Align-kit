@@ -147,13 +147,11 @@ def make_triples() -> str:
 def make_candidates() -> tuple[str, list[list[str]]]:
     """Build candidate lists; return TSV text and per-query candidate lists.
 
-    v0.1.3 train/valid public cands.tsv schema:
-        SrcEntity, QueryID, GoldTarget, Relation, TgtEntities, Relations, TgtCandidates
+    v0.2.0 train/valid public cands.tsv schema (5-column, single primary
+    gold per ADR-46/48):
+        SrcEntity, QueryID, TgtEntities, Relations, TgtCandidates
     """
-    header = (
-        "SrcEntity\tQueryID\tGoldTarget\tRelation\t"
-        "TgtEntities\tRelations\tTgtCandidates\n"
-    )
+    header = "SrcEntity\tQueryID\tTgtEntities\tRelations\tTgtCandidates\n"
     rows: list[str] = []
     per_query_cands: list[list[str]] = []
 
@@ -179,7 +177,7 @@ def make_candidates() -> tuple[str, list[list[str]]]:
         per_query_cands.append(candidates)
         cands_repr = "[" + ", ".join(f"'{c}'" for c in candidates) + "]"
         rows.append(
-            f"{source_id}\tQ0\t{gold_id}\tequivalent\t"
+            f"{source_id}\tQ0\t"
             f"['{gold_id}']\t['equivalent']\t{cands_repr}\n"
         )
 
@@ -195,8 +193,7 @@ def make_answers_tsv() -> str:
 def make_preferred() -> str:
     """Build the preferred-pair TSV (one row per query, equivalence-preferred).
 
-    v0.1.3 schema:
-        SrcEntity, QueryID, TgtEntity, Relation
+    Schema (unchanged): SrcEntity, QueryID, TgtEntity, Relation
     """
     header = "SrcEntity\tQueryID\tTgtEntity\tRelation\n"
     rows = [f"{src}\tQ0\t{gold}\tequivalent\n" for src, gold in QUERIES]
@@ -219,10 +216,10 @@ def write_all() -> None:
     test_lines = ["SrcEntity\tTgtCandidates\n"]
     for line in cands_text.splitlines()[1:]:
         parts = line.split("\t")
-        # v0.1.3 schema: SrcEntity, QueryID, GoldTarget, Relation,
-        # TgtEntities, Relations, TgtCandidates → 7 fields.
+        # v0.2.0 schema: SrcEntity, QueryID, TgtEntities, Relations,
+        # TgtCandidates → 5 fields.
         src = parts[0]
-        cands = parts[6]
+        cands = parts[4]
         test_lines.append(f"{src}\t{cands}\n")
     (TASKS_DIR / "test.cands.tsv").write_text("".join(test_lines))
 

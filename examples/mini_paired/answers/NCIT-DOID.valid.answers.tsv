@@ -1,5 +1,5 @@
-SrcEntity	QueryID	GoldTarget	Relation	TgtEntities	Relations	TgtCandidates
-NCIT:C001	Q0	DOID:D001	equivalent	['DOID:D001']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
-NCIT:C001	Q1	DOID:D000	source_subsumed_by_target	['DOID:D000']	['source_subsumed_by_target']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
-NCIT:C002	Q0	DOID:D002	equivalent	['DOID:D002']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
-NCIT:C002	Q1	DOID:D000	source_subsumed_by_target	['DOID:D000']	['source_subsumed_by_target']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
+SrcEntity	QueryID	TgtEntities	Relations	TgtCandidates
+NCIT:C001	Q0	['DOID:D001']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
+NCIT:C001	Q1	['DOID:D000']	['source_subsumed_by_target']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
+NCIT:C002	Q0	['DOID:D002']	['equivalent']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
+NCIT:C002	Q1	['DOID:D000']	['source_subsumed_by_target']	['DOID:D000', 'DOID:D001', 'DOID:D002', 'DOID:D003']
