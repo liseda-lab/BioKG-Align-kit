@@ -138,13 +138,13 @@
       "properties": {
         "n_queries_canonical": {
           "type": "integer",
-          "const": 30614,
+          "const": 30216,
           "description": "Total test queries across all three tasks under the canonical pool model at fraction=1.0."
         },
         "n_rows_canonical": {
           "type": "integer",
-          "const": 4592100,
-          "description": "Total submission rows for the canonical build (n_queries_canonical * block_size = 30,614 * 150)."
+          "const": 4532400,
+          "description": "Total submission rows for the canonical build (n_queries_canonical * block_size = 30,216 * 150)."
         }
       },
       "required": ["n_queries_canonical", "n_rows_canonical"]
