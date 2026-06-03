@@ -7,7 +7,7 @@ Submission rows are grouped positionally into per-query blocks. The scoring pipe
 Let `candidate_count` be the number of candidate target entities per query (canonical: 50) and $R_A$ be the set of relation types scored per query:
 
 $$
-R_A = \{\, \mathrm{equivalent},\ \mathrm{source\_subsumed\_by\_target},\ \mathrm{source\_subsumes\_target} \,\}.
+R_{A} = \{\ \text{equivalent},\ \text{source_subsumed_by_target},\ \text{source_subsumes_target}\ \}.
 $$
 
 In description-logic shorthand, $R_A = \{\equiv,\ \sqsubseteq,\ \sqsupseteq\}$, with cardinality $|R_A| = 3$. Then:

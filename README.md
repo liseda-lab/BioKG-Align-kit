@@ -1,90 +1,190 @@
-# BioKG-Align Kit
+# BioKG-Align Organizer Repository
 
-This is the public starting kit for BioKG-Align, a biomedical knowledge graph alignment challenge.
-It is the part participants should use. It does not generate the official dataset and it does not
-contain hidden test labels.
+This repository is the private organizer workspace for BioKG-Align. It contains the dataset-generation
+pipeline, release validation code, benchmark orchestration, and documentation for how the official
+challenge data is constructed.
 
-BioKG-Align asks a simple question over a structured biomedical graph: given a source entity and a
-fixed list of candidate targets from another ontology, which candidate is correct, and what relation
-does it have to the source?
+Participants should not need to run this repository. The public starting kit lives in the submodule
+at `public/BioKG-Align-kit` and is the place for the website, participant README, scorer, validator,
+toy example, and simple baselines.
 
-The relation labels are:
+## What this repository owns
 
-- `equivalent`
-- `source_subsumed_by_target`
-- `source_subsumes_target`
+The private pipeline is responsible for:
 
-For every query, systems submit scored candidate-relation pairs. A prediction is relevant only when
-both the target entity and the relation type are correct.
+- downloading or locking ontology source releases;
+- normalizing OWL, RF2, OMIM-style, and prepared source files into a common interface;
+- projecting ontology structure into public graph triples;
+- projecting the documented Datalog-compatible OWL fragment into `rules.dl` and `facts.dl`;
+- constructing equivalence and subsumption reference alignments;
+- generating public train/validation labels and hidden test answers;
+- building fixed candidate sets for each task;
+- auditing leakage before a release is published;
+- running organizer benchmarks.
 
-## What is in this kit
+The current synthetic fixture is still useful because it exercises the same file formats without
+requiring licensed biomedical sources.
 
-- a local scorer for validation answers;
-- a submission validator;
-- simple random and lexical baselines;
-- a tiny example dataset;
-- the challenge website draft under `docs/`.
+## Current status
 
-The official dataset will be distributed separately as a public data artifact. Participants should
-download that artifact, train their methods, and use this kit to validate submissions and reproduce
-baseline formats.
+The synthetic fixture runs end to end. The real-data pipeline now has the private structure for
+hybrid acquisition, normalization, projection, Datalog output, and staged CLI commands. Source-specific
+real adapters still need to be validated on the exact ontology releases selected for the challenge.
 
-## Install
+The projection protocol is documented in:
 
-From this repository:
+- `docs/data_generation_protocol.md`
+- `docs/ontology_projection.md`
+- `docs/reference_alignment_protocol.md`
+- `docs/benchmark_protocol.md`
 
-```bash
-python3 -m pip install -e .
+## Prerequisites
+
+### Java
+
+Required for reasoning with ELK (via mOWL).
+
+_(on Ubuntu)_
+
+```sh
+sudo apt update
+sudo apt install -y openjdk-17-jdk
+# Add to ~/.bashrc (or ~/.zshrc)
+export JAVA_HOME="$(dirname $(dirname $(readlink -f $(which java))))"
+export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
-You can also run the package without installation:
+## Poetry setup
 
-```bash
-PYTHONPATH=src python3 -m biokg_align_kit --help
-```
+This repository is a Poetry project, but a fresh clone is not installed just because `pyproject.toml`
+is present. Install the local package once before using the `biokg-align` command.
 
-## Try the example
-
-Score the example lexical baseline against the tiny answer file:
-
-```bash
-PYTHONPATH=src python3 -m biokg_align_kit run-baseline \
-  --data-dir examples/mini \
-  --task NCIT-DOID \
-  --split valid \
-  --baseline lexical \
-  --output /tmp/biokg-align-mini.tsv
-
-PYTHONPATH=src python3 -m biokg_align_kit score \
-  --predictions /tmp/biokg-align-mini.tsv \
-  --answers examples/mini/answers/NCIT-DOID.valid.answers.tsv
-```
-
-Validate a submission against candidate files:
-
-```bash
-PYTHONPATH=src python3 -m biokg_align_kit validate-submission \
-  --predictions /tmp/biokg-align-mini.tsv \
-  --candidates examples/mini/tasks/NCIT-DOID/valid.cands.tsv
-```
-
-Summarize a data directory:
-
-```bash
-PYTHONPATH=src python3 -m biokg_align_kit summarize-data --data-dir examples/mini
-```
-
-## Submission format
-
-Predictions are TSV files with four columns:
+If Poetry itself is missing, install it using the official instructions:
 
 ```text
-SrcEntity    TgtEntity    Relation    Score
+https://python-poetry.org/docs/#installation
 ```
 
-`Score` is a numeric value. Higher scores rank earlier. You may submit multiple rows for the same
-source entity, one for each candidate-relation pair you want scored.
+From the repository root:
 
-## Website
+```bash
+poetry --version
+poetry install
+poetry run biokg-align --help
+```
 
-The website draft is in `docs/` and can be served by GitHub Pages from the `docs` folder.
+For real-data work, install the optional dependencies as well:
+
+```bash
+poetry install --extras real
+```
+
+After that, prefer `poetry run biokg-align ...` for organizer commands. For quick debugging before
+installing the package, `PYTHONPATH=src python3 -m biokg_align ...` still works, but it should not be
+the normal workflow.
+
+## Quick checks
+
+Run the fixture pipeline:
+
+```bash
+poetry run biokg-align pipeline --config configs/fixture.json
+```
+
+Validate the generated fixture release:
+
+```bash
+poetry run biokg-align validate --config configs/fixture.json
+```
+
+Run tests:
+
+```bash
+poetry run python -m unittest
+```
+
+## Real-data stages
+
+The real pipeline is staged so each step can be inspected:
+
+```bash
+poetry run biokg-align download --config configs/real.private.json
+poetry run biokg-align normalize --config configs/real.private.json
+poetry run biokg-align project --config configs/real.private.json
+poetry run biokg-align build-release --config configs/real.private.json
+poetry run biokg-align validate-release --config configs/real.private.json
+poetry run biokg-align run-benchmarks --config configs/real.private.json
+```
+
+To run the pipeline end-to-end:
+
+```bash
+poetry run biokg-align pipeline --config configs/canonical.private.json
+```
+
+For production, do not use `configs/real_template.json` directly. Copy it to a private config, pin
+all source versions, add checksums, and point restricted sources such as SNOMED CT and OMIM at
+licensed local files or approved exports.
+
+## Public kit submodule
+
+Initialize the public kit after cloning:
+
+```bash
+git submodule update --init --recursive
+```
+
+Run its tests:
+
+```bash
+cd public/BioKG-Align-kit
+PYTHONPATH=src python3 -m unittest
+```
+
+The public kit should remain free of hidden labels, real-data adapters, licensed paths, private split
+logic, and organizer-only benchmark outputs.
+
+## Pushing changes
+
+The public kit is a Git submodule, so its commit must be pushed before the private repository records
+that submodule pointer.
+
+Push the public kit first:
+
+```bash
+cd public/BioKG-Align-kit
+git status
+git push -u origin main
+```
+
+Then push this private organizer repository:
+
+```bash
+cd ../..
+git status
+git submodule status
+git push -u origin main
+```
+
+When the public kit changes later, commit and push inside the submodule first:
+
+```bash
+cd public/BioKG-Align-kit
+git status
+git add README.md docs src examples pyproject.toml
+git commit -m "Update public starting kit"
+git push
+```
+
+Then return to this repository and commit the updated submodule pointer:
+
+```bash
+cd ../..
+git status
+git add public/BioKG-Align-kit
+git commit -m "Update public kit submodule"
+git push
+```
+
+If the submodule commit is not pushed first, GitHub will show the private repository pointing at a
+public-kit revision that other people cannot fetch.
