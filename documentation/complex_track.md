@@ -40,14 +40,14 @@ The three source tasks differ substantially in scale and in the granularity of t
 
 The HP concept *decreased circulating cortisol level* (`HP:0008163`) has the reference logical definition:
 
-$$
+```math
 \begin{aligned}
 \textsf{HP:0008163} \equiv {}
   & \exists\,\textsf{has\_part}.\big(\textsf{decreased\_amount} \\
-  & \phantom{\exists\,\textsf{has\_part}.\big(}\sqcap\exists\,\textsf{inheres\_in}.(\textsf{cortisol}\sqcap\exists\,\textsf{part\_of}.\textsf{blood}) \\
-  & \phantom{\exists\,\textsf{has\_part}.\big(}\sqcap\exists\,\textsf{has\_modifier}.\textsf{abnormal}\big).
+  & \qquad\qquad\qquad{\exists\,\textsf{has\_part}.\big(}\sqcap\exists\,\textsf{inheres\_in}.(\textsf{cortisol}\sqcap\exists\,\textsf{part\_of}.\textsf{blood}) \\
+  & \qquad\qquad\qquad{\exists\,\textsf{has\_part}.\big(}\sqcap\exists\,\textsf{has\_modifier}.\textsf{abnormal}\big).
 \end{aligned}
-$$
+```
 
 Note that every term is drawn from a background ontology:
 
