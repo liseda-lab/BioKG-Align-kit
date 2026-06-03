@@ -8,21 +8,21 @@ All three families are macro-averaged across queries — every query contributes
 
 For each query $q$, one $(\mathrm{target}, \mathrm{relation})$ pair is fixed as the **preferred gold pair** by the organiser. The preferred-pair metrics are MRR and Hits@K computed against this one pair:
 
-$$
-\text{preferred_typed_mrr}(q) = 
+```math
+\text{preferred\_typed\_mrr}(q) = 
 \begin{cases}
-  \frac{1}{\mathrm{rank}_q(\text{preferred_pair}_q)}
+  \frac{1}{\mathrm{rank}\_q(\text{preferred\_pair}\_q)}
     & \text{if found,} \\ 
   0 & \text{otherwise.} 
 \end{cases}
-$$
+```
 
-$$
-\text{preferred_typed_hits_at_K}(q) = \begin{cases} 
-  1 & \text{if } \text{rank}_q(\text{preferred_pair}_q) \leq K, \\ 
+```math
+\text{preferred\_typed\_hits\_at\_K}(q) = \begin{cases} 
+  1 & \text{if } \text{rank}\_q(\text{preferred\_pair}\_q) \leq K, \\ 
   0 & \text{otherwise.}
 \end{cases}
-$$
+```
 
 The macro-averaged scores reported by the kit:
 
