@@ -112,16 +112,17 @@ For all three tasks together, concatenate (in canonical task order: NCIT-DOID, S
 The kit ships a syntactic Datalog reader for participants who want to consume `graph/facts.dl` and `graph/rules.dl`:
 
 ```python
-from biokg_align_kit.datalog import load_facts, load_rules
+from biokg_align_kit.datalog import load_facts, load_program, load_terms
 
 facts = load_facts("graph/facts.dl")    # list[Fact]
-rules = load_rules("graph/rules.dl")    # list[Rule]
+program = load_program("graph/rules.dl")
+terms = load_terms("graph/datalog_terms.tsv")
 
 # Atoms have .predicate (str) and .args (tuple[str, ...])
-assert facts[0].atom.predicate in {"subclass", "edge", "equiv", "domain", "range", "inverse", "subprop", "transitive"}
+assert facts[0].atom.predicate in {"program_seed", "source_triple", "literal_datatype"}
 ```
 
-The reader is syntax-only — it parses the files into typed Python structures but does **not** evaluate rules. For closure computation, pipe the structures into a Datalog engine of your choice (Soufflé, Clingo, pyDatalog). The released `rules.dl` contains the OWL 2 RL closure rules used by the organiser pipeline; running these against the facts reconstructs the inferred hierarchy ELK produces internally.
+The reader is syntax-only — it parses the files into typed Python structures but does **not** evaluate rules. For closure computation, run the released Soufflé program or pipe the parsed structures into a Datalog engine of your choice.
 
 ## Workflow 5 — Rebuild a graded-relevance file
 

@@ -1064,6 +1064,31 @@ class DatalogLoaderTest(unittest.TestCase):
             self.assertEqual(load_facts(facts_path), [fact])
             self.assertEqual(load_rules(rules_path), [rule])
 
+    def test_load_program_handles_souffle_directives_includes_comparisons_and_terms(self) -> None:
+        from biokg_align_kit.datalog import Comparison, load_program, load_terms, decode_argument
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "facts.dl").write_text('source_triple("g", "s", "p", "o,with,commas").\n', encoding="utf-8")
+            (root / "rules.dl").write_text(
+                '.decl source_triple(g:symbol, s:symbol, p:symbol, o:symbol)\n'
+                '.include "facts.dl"\n'
+                'triple(s, p, o) :- source_triple(g, s, p, o), s != o. // comparison\n'
+                '.output triple\n',
+                encoding="utf-8",
+            )
+            (root / "datalog_terms.tsv").write_text(
+                "term_id\tterm_type\tlexical\tdatatype\tlanguage\tntriples\n"
+                "s\tiri\thttp://example.org/s\t\t\t<http://example.org/s>\n",
+                encoding="utf-8",
+            )
+            program = load_program(root / "rules.dl")
+            self.assertEqual(1, len(program.facts))
+            self.assertEqual("o,with,commas", program.facts[0].atom.args[3].strip('"'))
+            self.assertIsInstance(program.rules[0].body[-1], Comparison)
+            terms = load_terms(root / "datalog_terms.tsv")
+            self.assertEqual("http://example.org/s", decode_argument('"s"', terms).lexical)
+
 
 class PairedQueryKeyingTest(unittest.TestCase):
     """

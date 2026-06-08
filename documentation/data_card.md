@@ -18,7 +18,8 @@ public/
 │   ├── triples.csv
 │   ├── properties.csv
 │   ├── facts.dl
-│   └── rules.dl
+│   ├── rules.dl
+│   ├── datalog_terms.tsv
 ├── alignments/
 │   ├── train.tsv
 │   └── valid.tsv
@@ -78,9 +79,9 @@ Per-entity metadata.
 
 Note: annotations that could expose hidden test labels are withheld from this file.
 
-### `graph/facts.dl`, `graph/rules.dl`
+### `graph/facts.dl`, `graph/rules.dl`, `graph/datalog_terms.tsv`
 
-Datalog files derived from the subset of OWL 2 RL axioms in each ontology, plus closure rules. Predicates: `subclass`, `edge`, `equiv`, `domain`, `range`, `inverse`, `subprop`, `transitive`. See the proposal for the projection details; the kit ships `biokg_align_kit.datalog` as a stock reader for these files.
+Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` contains asserted logical RDF triples as `source_triple(graph,s,p,o)` plus literal support facts. `rules.dl` derives the OWL 2 RL closure as `triple(s,p,o)` and reports contradictions as `inconsistency(...)`. `datalog_terms.tsv` maps stable symbols back to IRIs, literals, datatypes, language tags, and blank nodes. The previous class-centric projection is retained for compatibility as `legacy_projection_facts.dl` and `legacy_projection_rules.dl`.
 
 ### `alignments/train.tsv`, `alignments/valid.tsv`
 
