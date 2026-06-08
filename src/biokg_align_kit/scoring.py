@@ -655,6 +655,9 @@ def score_files(
     relations: tuple[str, ...] | list[str] = DEFAULT_RELATIONS,
     submission_format: str = "block",
     strict: bool = True,
+    graph_dir: str | Path | None = None,
+    souffle_bin: str = "souffle",
+    conflict_report_path: str | Path | None = None,
 ) -> dict[str, float]:
     """
     Score a participant submission against a public answers/cands TSV.
@@ -818,6 +821,19 @@ def score_files(
         preferred_pairs=preferred_pairs,
         graded_relevance=graded_relevance,
     )
+    if graph_dir is not None:
+        from .conflict import score_datalog_conflicts
+
+        metrics.update(
+            score_datalog_conflicts(
+                predictions,
+                graph_dir,
+                query_keys=answers.keys(),
+                per_query_candidate_sets=load_per_query_candidate_sets(answers_path),
+                souffle_bin=souffle_bin,
+                report_path=conflict_report_path,
+            )
+        )
     if output_path:
         write_json(output_path, metrics)
     return metrics

@@ -254,11 +254,14 @@ def load_facts(path: str | Path) -> list[Fact]:
 
 
 def load_rules(path: str | Path) -> list[Rule]:
-    """Read a rules file. Soufflé directives are ignored."""
-    program = load_program(path, resolve_includes=False)
-    if program.facts:
-        raise ValueError(f"{path}: expected rules but found {len(program.facts)} fact(s). Use load_facts().")
-    return list(program.rules)
+    """Read rules from a driver and its includes, ignoring included facts."""
+    direct = load_program(path, resolve_includes=False)
+    if direct.facts:
+        raise ValueError(
+            f"{path}: expected rules but found {len(direct.facts)} "
+            "direct fact(s). Use load_facts()."
+        )
+    return list(load_program(path, resolve_includes=True).rules)
 
 
 def load_terms(path: str | Path) -> dict[str, Term]:

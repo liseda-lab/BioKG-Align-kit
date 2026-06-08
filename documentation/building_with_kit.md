@@ -124,7 +124,21 @@ assert facts[0].atom.predicate in {"program_seed", "source_triple", "literal_dat
 
 The reader is syntax-only — it parses the files into typed Python structures but does **not** evaluate rules. For closure computation, run the released Soufflé program or pipe the parsed structures into a Datalog engine of your choice.
 
-## Workflow 5 — Rebuild a graded-relevance file
+## Workflow 5 — Score OWL 2 RL mapping conflicts
+
+Install Soufflé, then pass the released graph directory to the normal scorer:
+
+```bash
+biokg-align-kit score \
+  --predictions predictions.tsv \
+  --answers tasks/NCIT-DOID/valid.cands.tsv \
+  --graph-dir graph \
+  --conflict-report conflict-report.json
+```
+
+The scorer selects the top-ranked mapping for each `(SrcEntity, QueryID)`, evaluates those mappings with `conflict_rules.dl`, and subtracts inconsistencies already derivable from the public graph. It reports `datalog_inconsistency_count`, `datalog_inconsistencies_per_mapping`, and related diagnostics. Omitting `--graph-dir` preserves the existing dependency-free scoring path.
+
+## Workflow 6 — Rebuild a graded-relevance file
 
 When you want to verify the released `*.graded.tsv` by reconstruction:
 

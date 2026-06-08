@@ -15,7 +15,7 @@ The main track asks a single question over a unified biomedical graph: given a s
   - `mini` - compact, human-readable
   - `canonical` - 50 candidates per query, production shape
   - `mini_paired` - paired equivalence and subsumption candidates (per source)
-- a Datalog reader for `graph/facts.dl` / `graph/rules.dl` (`biokg_align_kit.datalog`)
+- a Datalog reader plus optional Soufflé-backed OWL 2 RL conflict scoring for released graph programs
 - a `build-graded-relevance` helper for the Hierarchy-Aware gain table
 - specifications found under [documentation/](documentation/README.md)
 

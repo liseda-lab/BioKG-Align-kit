@@ -18,7 +18,9 @@ public/
 │   ├── triples.csv
 │   ├── properties.csv
 │   ├── facts.dl
+│   ├── owl2rl_core.dl
 │   ├── rules.dl
+│   ├── conflict_rules.dl
 │   ├── datalog_terms.tsv
 ├── alignments/
 │   ├── train.tsv
@@ -79,9 +81,11 @@ Per-entity metadata.
 
 Note: annotations that could expose hidden test labels are withheld from this file.
 
-### `graph/facts.dl`, `graph/rules.dl`, `graph/datalog_terms.tsv`
+### OWL 2 RL Datalog files
 
-Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` contains asserted logical RDF triples as `source_triple(graph,s,p,o)` plus literal support facts. `rules.dl` derives the OWL 2 RL closure as `triple(s,p,o)` and reports contradictions as `inconsistency(...)`. `datalog_terms.tsv` maps stable symbols back to IRIs, literals, datatypes, language tags, and blank nodes. The previous class-centric projection is retained for compatibility as `legacy_projection_facts.dl` and `legacy_projection_rules.dl`.
+Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` contains asserted logical RDF triples as `source_triple(graph,s,p,o)` plus literal support facts. `owl2rl_core.dl` contains declarations and recursive rules. `rules.dl` outputs the full closure and inconsistencies, while `conflict_rules.dl` is the lightweight scoring driver that outputs only `inconsistency(...)`. `datalog_terms.tsv` maps stable symbols back to IRIs, literals, datatypes, language tags, and blank nodes. The previous class-centric projection is retained for compatibility as `legacy_projection_facts.dl` and `legacy_projection_rules.dl`.
+
+When the scorer is given `--graph-dir`, it inserts the submission's top mapping per query as temporary RDF facts and reports only inconsistencies that were not already present in the baseline public graph. This is an OWL 2 RL Datalog inconsistency metric, not a full-OWL unsatisfiable-class count.
 
 ### `alignments/train.tsv`, `alignments/valid.tsv`
 

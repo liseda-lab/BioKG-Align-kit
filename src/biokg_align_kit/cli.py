@@ -105,6 +105,21 @@ def _build_parser() -> argparse.ArgumentParser:
             "tripping legacy fixtures."
         ),
     )
+    score_parser.add_argument(
+        "--graph-dir",
+        default=None,
+        help="Optional released graph directory for OWL 2 RL conflict scoring.",
+    )
+    score_parser.add_argument(
+        "--souffle-bin",
+        default="souffle",
+        help="Souffle executable or path (default: souffle).",
+    )
+    score_parser.add_argument(
+        "--conflict-report",
+        default=None,
+        help="Optional decoded Datalog conflict report JSON path.",
+    )
 
     # ----- verify ------------------------------------------------------
     validate_parser = subparsers.add_parser(
@@ -226,6 +241,9 @@ def main(argv: list[str] | None = None) -> None:
             graded_path=args.graded,
             candidate_count=args.candidate_count,
             submission_format=args.submission_format,
+            graph_dir=args.graph_dir,
+            souffle_bin=args.souffle_bin,
+            conflict_report_path=args.conflict_report,
         )
         for key, value in metrics.items():
             print(f"{key}\t{value:.6f}")
