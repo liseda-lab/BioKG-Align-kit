@@ -1,12 +1,12 @@
-# Data Card — BioKG-Align v0.2.0
+# Data Card — BioKG-Align v0.3.0
 
-This data card describes the public artifacts released for the BioKG-Align competition (NeurIPS 2026 Competition Track). It includes concrete file-level documentation aimed at participants integrating the data into their pipelines. For the other kit-side reference documents see the rest of this directory.
+This data card describes the public artifacts released for the BioKG-Align competition (AAAI 2027). It includes concrete file-level documentation aimed at participants integrating the data into their pipelines. For the other kit-side reference documents see the rest of this directory.
 
 ## Overview
 
-BioKG-Align is a typed link-prediction benchmark over a unified biomedical knowledge graph projected from five OWL ontologies: SNOMED CT, NCIT, FMA, ORDO, and DOID. The competition graph contains 824,035 nodes and 2,781,910 triples; upstream cross-reference resources are used to construct the reference alignments but are not released as task ontologies in the graph.
+BioKG-Align is a typed link-prediction benchmark over a unified biomedical knowledge graph projected from five OWL ontologies: SNOMED CT, NCIT, FMA, ORDO, and DOID. The competition graph contains 723,938 nodes and 2,180,708 triples; upstream cross-reference resources are used to construct the reference alignments but are not released as task ontologies in the graph.
 
-The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. The release contains 30,216 test queries across 15,550 source entities. Each query has 50 candidate target entities and three relation types, producing a 150-row submission block per query.
+The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. The release contains 29,490 test queries across 15,168 source entities. Each query has 50 candidate target entities and three relation types, producing a 150-row submission block per query.
 
 ## Released artifacts
 
@@ -17,25 +17,40 @@ public/
 ├── graph/
 │   ├── triples.csv
 │   ├── properties.csv
-│   ├── facts.dl
+│   ├── anchors_train.tsv
+│   ├── facts.dl                  # .input driver
+│   ├── <relation>.facts          # one TSV per fact relation (see datalog_schema.json)
 │   ├── owl2rl_core.dl
 │   ├── rules.dl
 │   ├── conflict_rules.dl
+│   ├── legacy_projection_rules.dl
+│   ├── legacy_projection_facts.dl
 │   ├── datalog_terms.tsv
+│   ├── datalog_schema.json
+│   ├── node_schema.json
+│   └── relation_schema.json
 ├── alignments/
 │   ├── train.tsv
 │   └── valid.tsv
-└── tasks/
-    ├── NCIT-DOID/
-    │   ├── train.cands.tsv
-    │   ├── valid.cands.tsv
-    │   ├── test.cands.tsv
-    │   ├── train.preferred.tsv
-    │   ├── valid.preferred.tsv
-    │   ├── train.graded.tsv
-    │   └── valid.graded.tsv
-    ├── SNOMED-FMA/  (same layout)
-    └── SNOMED-NCIT/ (same layout)
+├── tasks/
+│   ├── NCIT-DOID/
+│   │   ├── train.cands.tsv
+│   │   ├── valid.cands.tsv
+│   │   ├── test.cands.tsv
+│   │   ├── train.preferred.tsv
+│   │   ├── valid.preferred.tsv
+│   │   ├── train.graded.tsv
+│   │   ├── valid.graded.tsv
+│   │   ├── train.composition.json
+│   │   └── valid.composition.json
+│   ├── SNOMED-FMA/  (same layout)
+│   └── SNOMED-NCIT/ (same layout)
+├── baseline_predictions/
+├── evaluation/                    # sample_submission.tsv, submission_schema.json, scorer
+├── baseline_results.json / baseline_results_macro.json / baseline_results.md
+├── README.md / data_card.md       # in-package pointers to this documentation
+├── release_manifest.json
+└── license_manifest.json
 ```
 
 The corresponding test-split files (`<task>.test.answers.tsv`, `<task>.test.preferred.tsv`, `<task>.test.graded.tsv`) are organiser-only and not distributed; the scorer runs server-side against them after a submission is uploaded.
@@ -50,11 +65,11 @@ Typed graph triples including intra-ontology relations and released training anc
 |---------------------|---------|------------------------------------------------------------------------------------------------------|
 | `triple_id`         | string  | Stable per-triple identifier (e.g. `T00000001`).                                                     |
 | `head_id`           | string  | Source (head) entity identifier (e.g. `SNOMED:12345`).                                               |
-| `relation`          | string  | Relation type: hierarchy (subclass) edges plus ontology object properties (262 distinct values).     |
+| `relation`          | string  | Relation type: hierarchy (subclass) edges plus ontology object properties (348 distinct values).     |
 | `tail_id`           | string  | Target (tail) entity identifier.                                                                     |
 | `head_ontology`     | string  | Head entity's ontology code.                                                                         |
 | `tail_ontology`     | string  | Tail entity's ontology code.                                                                         |
-| `source`            | string  | Edge origin: `ontology` (asserted axiom), `ontology_projection` (mOWL OWL2Vec*), or `verified_lexical_anchor`. |
+| `source`            | string  | Edge origin: `ontology` (asserted axiom), `ontology_hierarchy` (normalized hierarchy row, e.g. RF2 is-a), `ontology_projection` (mOWL OWL2Vec*), or `verified_lexical_anchor`. |
 | `provenance`        | string  | Free-text origin detail (e.g. `source_axiom`, the source ontology code, or the anchor method).       |
 | `is_inferred`       | boolean | Reasoner-closure flag.                                                                               |
 | `is_anchor`         | boolean | `true` for the cross-ontology training anchors (10 in the canonical build), `false` otherwise.       |
@@ -83,9 +98,14 @@ Note: annotations that could expose hidden test labels are withheld from this fi
 
 ### OWL 2 RL Datalog files
 
-Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` contains asserted logical RDF triples as `source_triple(graph,s,p,o)` plus literal support facts. `owl2rl_core.dl` contains declarations and recursive rules. `rules.dl` outputs the full closure and inconsistencies, while `conflict_rules.dl` is the lightweight scoring driver that outputs only `inconsistency(...)`. `datalog_terms.tsv` maps stable symbols back to IRIs, literals, datatypes, language tags, and blank nodes. The previous class-centric projection is retained for compatibility as `legacy_projection_facts.dl` and `legacy_projection_rules.dl`.
+Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` is the fact-loading driver: the asserted facts ship as one tab-separated `<relation>.facts` file per relation (`source_triple` carries the logical RDF triples as `(graph, s, p, o)` rows; the remaining relations are literal support facts), loaded via Soufflé `.input` directives — inline atoms would be unparseable at release scale. Run Soufflé from the `graph/` directory (or pass `-F graph/`). `owl2rl_core.dl` contains declarations and recursive rules. `rules.dl` outputs the full closure and inconsistencies, while `conflict_rules.dl` is the lightweight scoring driver that outputs only `inconsistency(...)`. `datalog_terms.tsv` maps stable symbols back to IRIs, literals, datatypes, language tags, and blank nodes. The previous class-centric projection is retained for compatibility as `legacy_projection_facts.dl` and `legacy_projection_rules.dl`.
 
-When the scorer is given `--graph-dir`, it inserts the submission's top mapping per query as temporary RDF facts and reports only inconsistencies that were not already present in the baseline public graph. This is an OWL 2 RL Datalog inconsistency metric, not a full-OWL unsatisfiable-class count.
+When the scorer is given `--graph-dir`, it inserts the submission's top mapping per query as temporary RDF facts and reports only inconsistencies that were not already present in the baseline public graph. This is an OWL 2 RL Datalog inconsistency metric, not a full-OWL unsatisfiable-class count. The same program can drive a coherence check via canary individuals (`building_with_kit.md`, Workflow 8).
+
+**Withheld axiom families (declared post-processing, v0.3.0).** The released fact base is curated so that the shipped theory cannot contradict the reference alignment: pairwise disjointness axioms inconsistent with the complete reference alignment were removed (105 of 26,553), and list-based disjointness (`owl:AllDisjointClasses`) is withheld entirely, as are `owl:FunctionalProperty` / `owl:InverseFunctionalProperty` typings. The exact aggregate counts ship machine-readably in `datalog_schema.json` (`withheld_axiom_families`, `disjointness_curation`); the build verifies that canary probing of the released facts — alone, or with any subset of the reference alignment merged — yields **zero** inconsistency witnesses. Two consequences participants can rely on:
+
+- The retained `owl:disjointWith` axioms are **certified consistent with every reference mapping**: if merging one of your candidate mappings induces an inconsistency, that mapping is not in the reference. Conflict counts (Workflow 5) and canary checks (Workflow 8) are therefore sound pruning signals.
+- A clean check is expected, not evidence of full-OWL coherence: the curation removes real upstream axioms (the evidence-based reference is not DL-coherent against them), axioms with existential superclasses (`C ⊑ ∃R.D`) remain outside OWL 2 RL and excluded from the facts (visible quantifier-free as projected edges in `triples.csv`), and full-ontology reasoning requires the upstream OWL sources with a DL reasoner.
 
 ### `alignments/train.tsv`, `alignments/valid.tsv`
 
@@ -149,6 +169,10 @@ Per-query graded relevance file for the secondary metric (Hierarchy-Aware Typed 
 | `Relation`  | string | Relation.                                        |
 | `Gain`      | float  | Graded gain in `[0, 1]`.                          |
 
+### `tasks/<task>/{train,valid}.composition.json`
+
+Per-query candidate-pool composition report: how many of each query's 50 candidates were contributed by each construction tier (`gold`, `lexical`, `neighbourhood`, `random`, `rerank`), per query and in aggregate. Diagnostic transparency only — not needed for training or scoring.
+
 ## Submission format
 
 The participant submission is a single TSV across all three task pairs:
@@ -159,7 +183,7 @@ SrcEntity   TgtEntity   Relation   Score
 
 Submission rows are grouped positionally into per-query blocks of size 150 (`candidate_count x |submission.relations|`, 50 $\times$ 3 = 150). Block `k` corresponds to the k-th row of the concatenated `test.cands.tsv` files (canonical task order: NCIT-DOID, SNOMED-FMA, SNOMED-NCIT — see `../submission_schema.json`).
 
-For the canonical build (30,216 test queries), a full submission is `30,216 x 150 = 4,532,400` rows.
+For the canonical build (29,490 test queries), a full submission is `29,490 x 150 = 4,423,500` rows.
 
 The kit's `verify` CLI command validates the submission locally before upload; see kit README for usage.
 
@@ -174,7 +198,7 @@ The kit's `verify` CLI command validates the submission locally before upload; s
 | DOID         | CC0 1.0.                                                     |
 | Code & docs  | See `../LICENSE`.                                            |
 
-Licence terms for SNOMED CT and FMA complicate direct redistribution of the source ontologies; organisers intend to provide download / reconstruction scripts in the starting kit (`biokg-align download`) that recover the source files from upstream under the participant's own licence.
+Licence terms for SNOMED CT and FMA complicate direct redistribution of the source ontologies; organisers intend to provide download / reconstruction scripts in the starting kit (a planned `biokg-align-kit download` subcommand; not yet shipped) that recover the source files from upstream under the participant's own licence.
 
 ## Splits
 
@@ -192,4 +216,4 @@ Known limitations:
 
 ## Versioning
 
-This data card describes v0.2.0 _(rc3, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 is intended for NeurIPS 2026 release.
+This data card describes v0.3.0 _(rc1, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 (last built as rc3) froze the one-preferred-gold metric contract; v0.2.1 kept that contract, added the publication-readiness fixes (scoring, leakage, and reproducibility), and moved the Datalog facts to the `.input` layout; v0.3.0 withholds the class-clash axiom families from the released facts (the declared reference-consistency curation above) — it is the version intended for AAAI 2027 release.

@@ -69,7 +69,7 @@ The standard participant loop after downloading the public data artifact.
 _An example._
 
 ```bash
-DATA=~/biokg-align-v0.2.0-public
+DATA=~/biokg-align-v0.3.0-public
 ```
 
 **Run your ranking model.** 
@@ -138,6 +138,8 @@ biokg-align-kit score \
 
 The scorer selects the top-ranked mapping for each `(SrcEntity, QueryID)`, evaluates those mappings with `conflict_rules.dl`, and subtracts inconsistencies already derivable from the public graph. It reports `datalog_inconsistency_count`, `datalog_inconsistencies_per_mapping`, and related diagnostics. Omitting `--graph-dir` preserves the existing dependency-free scoring path.
 
+Since v0.3.0 the released disjointness axioms are **certified consistent with the complete reference alignment** (see the data card's withheld-axiom declaration), so this count is a sound signal: a mapping that induces an inconsistency is not a reference mapping. The conflict count is a diagnostic, never a leaderboard metric.
+
 ## Workflow 6 — Rebuild a graded-relevance file
 
 When you want to verify the released `*.graded.tsv` by reconstruction:
@@ -153,7 +155,7 @@ diff $DATA/tasks/NCIT-DOID/valid.graded.tsv /tmp/reconstructed.graded.tsv
 # Should be empty (byte-identical).
 ```
 
-## Workflow 6 — Practise the real submission shape
+## Workflow 7 — Practise the real submission shape
 
 The leaderboard accepts **only** the four-column block format (`submission_format.md`, `block_scoring.md`); per-query identity is recovered positionally against the hidden answers, so the row order and per-query block sizing must be exact. The public `test.cands.tsv` ships no gold, so you cannot `score` it locally — but you can, and should, validate the submission shape before uploading. Practise on a bundled gold-free `test.cands.tsv`:
 
@@ -188,6 +190,54 @@ PYTHONPATH=src python3 -m biokg_align_kit score \
 ```
 
 The `row` format is a **local-only** convenience; the leaderboard accepts `block` only. Use `block` (the default) for anything you intend to submit, and exercise the block + `verify` flow above so there are no surprises at upload time.
+
+## Workflow 8 — Coherence checking your mappings (canary individuals)
+
+The released Datalog program is OWL 2 RL: it detects *inconsistency* (contradictory facts), but an unsatisfiable class with no members produces no conflict on its own. You can turn it into a coherence check by giving every class a member. Add one fresh "canary" individual per class, typed at that class; RL type propagation (`cax-sco`, `cax-eqc1/2`) carries each canary up the hierarchy, and any canary that lands in two disjoint classes (`cax-dw`) names its class as unsatisfiable in the released fragment.
+
+On the released facts alone this reports **nothing — by construction**: the v0.3.0 fact base is curated so the shipped theory cannot contradict the reference alignment (see the data card's withheld-axiom declaration), and the build verifies zero witnesses. The check earns its keep on *your* mappings: append your candidate or top-1 mappings as `source_triple` rows, and any canary hit tells you those mappings cross a disjointness boundary that no reference mapping crosses — i.e. something in your set is wrong.
+
+Canary identifiers are free Soufflé symbols — they need no `datalog_terms.tsv` entry. Only the `rdf:type` predicate and the class terms must resolve through the term dictionary, and both already do.
+
+Work on a copy of the released `graph/` directory (the check appends facts):
+
+```bash
+cp -r "$DATA/graph" coherence-check && cd coherence-check
+python3 - <<'EOF'
+import csv
+with open("datalog_terms.tsv", newline="") as handle:
+    terms = {row["lexical"]: row["term_id"]
+             for row in csv.DictReader(handle, delimiter="\t")
+             if row["term_type"] == "iri"}
+rdf_type = terms["http://www.w3.org/1999/02/22-rdf-syntax-ns#type"]
+with open("properties.csv", newline="") as nodes, \
+     open("source_triple.facts", "a", encoding="utf-8") as facts:
+    for row in csv.DictReader(nodes):
+        term = terms.get(row["iri"])
+        if term:
+            facts.write(f"canary\tcanary:{row['node_id']}\t{rdf_type}\t{term}\n")
+EOF
+mkdir out
+souffle -j 8 -D out conflict_rules.dl
+grep "canary:" out/inconsistency.csv | sort -u
+```
+
+Each surviving row names an unsatisfiable class directly in its `canary:<node_id>` argument; the first column is the violated rule, and the other term ids decode through the term dictionary:
+
+```bash
+grep "canary:" out/inconsistency.csv | cut -f2,3 | tr '\t' '\n' | sort -u \
+  | grep -F -f - datalog_terms.tsv
+```
+
+On the released graph the `grep` comes back **empty — that is the verified baseline** (the build asserts it). To put the check to work, also append your candidate or top-1 mappings as `source_triple` rows (the same representation `--graph-dir` conflict scoring inserts; see Workflow 5) before running Soufflé: every hit then names a class your mappings make unsatisfiable. When a class is unsatisfiable, every subclass of it is too — expect one hit per affected class, not one per root cause; the rule column plus the decoded class terms point at the offending disjointness.
+
+**Scope — read before citing the result.**
+
+- Since v0.3.0 the released disjointness axioms are certified consistent with the complete reference alignment (data card, withheld-axiom declaration). A canary hit induced by your mappings is therefore a **sound** wrongness signal: no reference mapping crosses a shipped disjointness boundary. The converse does not hold — a clean run does not make your mappings correct.
+- The check covers the subclass / equivalence / disjointness fragment that ships in the fact base — exactly what OWL 2 RL can propagate from a class-level typing. Axioms with existential restrictions in the superclass position (`C ⊑ ∃R.D`, the dominant modelling pattern in SNOMED and NCIT) are outside OWL 2 RL and are excluded from the released facts (they are listed in the release's `reports/unsupported_axioms.csv`, and remain visible quantifier-free as projected edges in `graph/triples.csv`).
+- The released fact base is deliberately curated (some upstream disjointness is withheld — see the data card), so neither a clean run here nor one over your mappings certifies coherence under the full source ontologies. For that, load the upstream OWL into a DL reasoner (e.g. ELK).
+
+At release scale expect minutes with `-j 8`, not seconds — the canaries effectively materialise the class hierarchy's transitive closure.
 
 ## Failure modes worth knowing about
 
@@ -226,20 +276,20 @@ Always report support counts alongside the headline numbers; a high score on a t
 
 ## Baseline results
 
-The organiser ships baseline predictions for all three tasks under `baseline_predictions/`. The headline numbers below are **macro-averaged across the three task pairs** on the **private test set** — the v0.2.0-rc3 leaderboard figures. Only `random` and `hybrid_lexical` are reproducible with this kit (`run-baseline`); `exact_lexical`, `word_embedding_based`, and the KGE family (`transe`, `distmult`, `complex`, `rotate`) are organiser-produced (GPU / PyKEEN / embedding services) and ship as prediction fixtures only.
+The organiser ships baseline predictions for all three tasks under `baseline_predictions/`. The headline numbers below are **macro-averaged across the three task pairs** on the **private test set** — the v0.3.0-rc1 leaderboard figures. Only `random` and `hybrid_lexical` are reproducible with this kit (`run-baseline`); `exact_lexical`, `word_embedding_based`, and the KGE family (`transe`, `distmult`, `complex`, `rotate`) are organiser-produced (GPU / PyKEEN / embedding services) and ship as prediction fixtures only.
 
-### v0.2.0-rc3 leaderboard (macro across tasks, private test gold)
+### v0.3.0-rc1 leaderboard (macro across tasks, private test gold)
 
 | Baseline | Pref-Typed MRR | H-nDCG@10 | H@1 | H@5 | H@10 |
 |----------|---------------:|----------:|-------:|-------:|-------:|
-| `random`               | 0.0375 | 0.0454 | 0.0065 | 0.0345 | 0.0680 |
-| `hybrid_lexical`       | 0.4229 | 0.3813 | 0.3532 | 0.5033 | 0.5613 |
-| `exact_lexical`        | 0.0613 | 0.0515 | 0.0372 | 0.0560 | 0.0846 |
-| `word_embedding_based` | 0.4267 | 0.3760 | 0.3536 | 0.4998 | 0.5695 |
-| `transe`               | 0.0884 | 0.0780 | 0.0275 | 0.1094 | 0.1902 |
-| `distmult`             | 0.1167 | 0.1573 | 0.0367 | 0.1601 | 0.2735 |
-| `complex`              | 0.1428 | 0.1521 | 0.0553 | 0.2083 | 0.3198 |
-| `rotate`               | 0.1870 | 0.2026 | 0.1079 | 0.2502 | 0.3296 |
+| `random`               | 0.0366 | 0.0439 | 0.0059 | 0.0326 | 0.0664 |
+| `hybrid_lexical`       | 0.4197 | 0.3786 | 0.3499 | 0.4965 | 0.5573 |
+| `exact_lexical`        | 0.0600 | 0.0497 | 0.0361 | 0.0538 | 0.0800 |
+| `word_embedding_based` | 0.4285 | 0.3782 | 0.3540 | 0.5024 | 0.5758 |
+| `transe`               | 0.0787 | 0.0689 | 0.0224 | 0.0925 | 0.1657 |
+| `distmult`             | 0.0906 | 0.1417 | 0.0219 | 0.1170 | 0.2180 |
+| `complex`              | 0.0896 | 0.1022 | 0.0293 | 0.1201 | 0.1989 |
+| `rotate`               | 0.1862 | 0.1976 | 0.1063 | 0.2497 | 0.3298 |
 
 `word_embedding_based` is the proposal's sentence-embedding baseline. The lexical and sentence-embedding methods score highly because the candidate pool prioritises the equivalence target; the structural (KGE) methods trail on the preferred-pair metrics but close some of the gap on H-nDCG@10, which rewards hierarchically-close predictions.
 
@@ -249,8 +299,8 @@ Running `random` and `hybrid_lexical` through the kit on the **public** `valid` 
 
 | Baseline | Pref-Typed MRR | H-nDCG@10 |
 |----------|---------------:|----------:|
-| `random`         | 0.0374 | 0.0453 |
-| `hybrid_lexical` | 0.4208 | 0.3731 |
+| `random`         | 0.0374 | 0.0464 |
+| `hybrid_lexical` | 0.4183 | 0.3749 |
 
 These are close to the leaderboard rows above but **not identical**: the kit scores the public `valid` split while the leaderboard scores the private `test` split. The metric implementation is the same code path — the gap is the split, not the scorer. Reproduce with `run-baseline --split valid` $\rightarrow$ `score` (Workflow 3), looping over the three tasks.
 
@@ -260,7 +310,7 @@ These are close to the leaderboard rows above but **not identical**: the kit sco
 > numbers, reproduced verbatim for provenance. They use the proposal's
 > original metrics — **Macro-AVG Typed MRR** (averaged across the
 > relations present in each multi-gold candidate pool) and untyped
-> **MRR** — which v0.2.0 retired. v0.2.0-rc3 instead reports the **Macro
+> **MRR** — which v0.2.0 retired. v0.2.0+ instead reports the **Macro
 > Preferred Relation-Aware (Typed) MRR** over a *single* preferred typed
 > gold per pool. The gold model changed (multiple golds per pool $\rightarrow$ one
 > preferred typed gold) and the pooling strategy was modified, so the
@@ -281,45 +331,45 @@ These are close to the leaderboard rows above but **not identical**: the kit sco
 
 † `Typed MRR` here is the **Macro-AVG Typed MRR** (macro-across-relations, multi-gold) and `MRR` is untyped — both retired in v0.2.0; see the note above. "Sentence embedding" is the `word_embedding_based` baseline.
 
-### Per-task breakdown (v0.2.0-rc3, private test gold)
+### Per-task breakdown (v0.3.0-rc1, private test gold)
 
 **NCIT-DOID**
 
 | Baseline | Pref-Typed MRR | H-nDCG@10 | H@1 | H@5 | H@10 |
 |----------|---------------:|----------:|-------:|-------:|-------:|
-| `random`               | 0.0371 | 0.0451 | 0.0065 | 0.0323 | 0.0676 |
-| `hybrid_lexical`       | 0.4186 | 0.3733 | 0.3440 | 0.5026 | 0.5593 |
-| `exact_lexical`        | 0.1140 | 0.0881 | 0.0945 | 0.1086 | 0.1246 |
-| `word_embedding_based` | 0.4301 | 0.3861 | 0.3492 | 0.5143 | 0.5935 |
-| `transe`               | 0.0760 | 0.0634 | 0.0204 | 0.0939 | 0.1629 |
-| `distmult`             | 0.0984 | 0.1425 | 0.0269 | 0.1368 | 0.2267 |
-| `complex`              | 0.1403 | 0.1521 | 0.0521 | 0.2034 | 0.3258 |
-| `rotate`               | 0.2000 | 0.2072 | 0.1154 | 0.2756 | 0.3579 |
+| `random`               | 0.0377 | 0.0452 | 0.0062 | 0.0339 | 0.0672 |
+| `hybrid_lexical`       | 0.4106 | 0.3697 | 0.3335 | 0.4973 | 0.5645 |
+| `exact_lexical`        | 0.1088 | 0.0821 | 0.0903 | 0.1011 | 0.1152 |
+| `word_embedding_based` | 0.4266 | 0.3850 | 0.3406 | 0.5152 | 0.6033 |
+| `transe`               | 0.0764 | 0.0600 | 0.0249 | 0.0881 | 0.1491 |
+| `distmult`             | 0.0837 | 0.1385 | 0.0214 | 0.1076 | 0.1979 |
+| `complex`              | 0.0874 | 0.1042 | 0.0236 | 0.1177 | 0.2139 |
+| `rotate`               | 0.2116 | 0.2069 | 0.1223 | 0.2896 | 0.3701 |
 
 **SNOMED-FMA**
 
 | Baseline | Pref-Typed MRR | H-nDCG@10 | H@1 | H@5 | H@10 |
 |----------|---------------:|----------:|-------:|-------:|-------:|
-| `random`               | 0.0376 | 0.0453 | 0.0064 | 0.0359 | 0.0669 |
-| `hybrid_lexical`       | 0.4323 | 0.3975 | 0.3542 | 0.5247 | 0.6018 |
-| `exact_lexical`        | 0.0451 | 0.0450 | 0.0132 | 0.0423 | 0.0916 |
-| `word_embedding_based` | 0.4084 | 0.3531 | 0.3268 | 0.4916 | 0.5666 |
-| `transe`               | 0.1035 | 0.0866 | 0.0387 | 0.1299 | 0.2160 |
-| `distmult`             | 0.1241 | 0.1607 | 0.0389 | 0.1679 | 0.3008 |
-| `complex`              | 0.1333 | 0.1285 | 0.0551 | 0.1848 | 0.2933 |
-| `rotate`               | 0.1696 | 0.1707 | 0.0976 | 0.2217 | 0.2923 |
+| `random`               | 0.0356 | 0.0417 | 0.0054 | 0.0301 | 0.0644 |
+| `hybrid_lexical`       | 0.4367 | 0.4016 | 0.3557 | 0.5311 | 0.6086 |
+| `exact_lexical`        | 0.0456 | 0.0447 | 0.0138 | 0.0429 | 0.0854 |
+| `word_embedding_based` | 0.4102 | 0.3535 | 0.3293 | 0.4919 | 0.5692 |
+| `transe`               | 0.0833 | 0.0728 | 0.0237 | 0.0988 | 0.1805 |
+| `distmult`             | 0.0868 | 0.1369 | 0.0165 | 0.1095 | 0.2092 |
+| `complex`              | 0.0802 | 0.0806 | 0.0268 | 0.1023 | 0.1679 |
+| `rotate`               | 0.1665 | 0.1715 | 0.0931 | 0.2218 | 0.2975 |
 
 **SNOMED-NCIT**
 
 | Baseline | Pref-Typed MRR | H-nDCG@10 | H@1 | H@5 | H@10 |
 |----------|---------------:|----------:|-------:|-------:|-------:|
-| `random`               | 0.0378 | 0.0457 | 0.0066 | 0.0354 | 0.0694 |
-| `hybrid_lexical`       | 0.4177 | 0.3730 | 0.3614 | 0.4825 | 0.5229 |
-| `exact_lexical`        | 0.0248 | 0.0215 | 0.0041 | 0.0170 | 0.0378 |
-| `word_embedding_based` | 0.4415 | 0.3888 | 0.3847 | 0.4935 | 0.5482 |
-| `transe`               | 0.0856 | 0.0840 | 0.0233 | 0.1042 | 0.1915 |
-| `distmult`             | 0.1277 | 0.1688 | 0.0443 | 0.1756 | 0.2930 |
-| `complex`              | 0.1547 | 0.1756 | 0.0587 | 0.2368 | 0.3404 |
-| `rotate`               | 0.1914 | 0.2300 | 0.1108 | 0.2533 | 0.3385 |
+| `random`               | 0.0367 | 0.0446 | 0.0060 | 0.0337 | 0.0675 |
+| `hybrid_lexical`       | 0.4118 | 0.3645 | 0.3606 | 0.4611 | 0.4988 |
+| `exact_lexical`        | 0.0255 | 0.0223 | 0.0042 | 0.0174 | 0.0395 |
+| `word_embedding_based` | 0.4486 | 0.3963 | 0.3922 | 0.5000 | 0.5550 |
+| `transe`               | 0.0765 | 0.0737 | 0.0185 | 0.0905 | 0.1675 |
+| `distmult`             | 0.1013 | 0.1496 | 0.0277 | 0.1341 | 0.2469 |
+| `complex`              | 0.1011 | 0.1218 | 0.0376 | 0.1403 | 0.2150 |
+| `rotate`               | 0.1804 | 0.2143 | 0.1034 | 0.2377 | 0.3218 |
 
 The macro-across-tasks figures in the leaderboard table above are the arithmetic mean of the three per-task rows.

@@ -98,6 +98,12 @@ def predict(
     data_path = Path(data_dir)
     candidates = read_tsv(data_path / "tasks" / task / f"{split}.cands.tsv")
     properties = load_properties(data_path)
+    if baseline == "hybrid_lexical" and not properties:
+        raise ValueError(
+            f"hybrid_lexical requires graph/properties.csv under {data_path} "
+            "(no labels found); without it every pair scores identically and "
+            "the output ranking is a meaningless alphabetical tie-break."
+        )
     rows = []
     for row in candidates:
         source_id = row["SrcEntity"]
@@ -147,7 +153,14 @@ def score(
             target.get("preferred_label", ""),
             target.get("synonyms", ""),
         ])
-        relation_bias = 0.05 if relation == "equivalent" else 0.0
+        # The canonical organiser bias table (paper §1.6 Table 2): the two
+        # subsumption relations carry distinct biases, so kit-computed baseline
+        # numbers match the organiser-published rows.
+        relation_bias = {
+            "equivalent": 0.05,
+            "source_subsumed_by_target": 0.02,
+            "source_subsumes_target": 0.01,
+        }.get(relation, 0.0)
         return lexical_score(source_text, target_text) + relation_bias
     if baseline == "lexical":
         raise ValueError(

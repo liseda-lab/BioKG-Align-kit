@@ -43,20 +43,20 @@ This is the order in which per-task `test.cands.tsv` files are conceptually conc
 
 | Quantity | Value |
 |----------|-------|
-| `N_queries` (test) | `30,216` |
+| `N_queries` (test) | `29,490` |
 | `block_size` | `150` |
-| `N_rows` total | `4,532,400` |
+| `N_rows` total | `4,423,500` |
 
-A correctly-shaped submission is therefore a 4,532,400-row file (plus one header line).
+A correctly-shaped submission is therefore a 4,423,500-row file (plus one header line).
 
 Per task, in the canonical concatenation order:
 
 | Task | test queries | submission rows ($\times 150$) |
 |------|-------------:|--------------------------:|
-| NCIT-DOID   | 3,683  | 552,450   |
-| SNOMED-FMA  | 5,319  | 797,850   |
-| SNOMED-NCIT | 21,214 | 3,182,100 |
-| **Total**   | **30,216** | **4,532,400** |
+| NCIT-DOID   | 3,688  | 553,200   |
+| SNOMED-FMA  | 5,153  | 772,950   |
+| SNOMED-NCIT | 20,649 | 3,097,350 |
+| **Total**   | **29,490** | **4,423,500** |
 
 ## Strictness rules
 
@@ -69,7 +69,7 @@ The platform scorer enforces the following rules row-by-row and block-by-block. 
 | Row's `Relation` is not in the canonical relation list | **Fatal**. |
 | Row's `Score` is not parseable as a finite float | **Fatal**. |
 | Duplicate $(\mathrm{TgtEntity}, \mathrm{Relation})$ pair within a block | **Warn**; the scorer keeps the maximum score per pair. |
-| Missing canonical $(\mathrm{TgtEntity}, \mathrm{Relation})$ pair within a block | **Warn**; the scorer assigns score $0.0$ (effective last-rank). |
+| Missing canonical $(\mathrm{TgtEntity}, \mathrm{Relation})$ pair within a block | **Warn**; the scorer assigns score $-\infty$ (last-rank for any score range, including negative scores). |
 | Row's `TgtEntity` is not in that query's candidate set | **Silent filter**. The row is dropped; if a canonical pair is missing as a consequence, the missing-pair warning surfaces it. |
 
 Fatal conditions stop scoring immediately and return an error to the participant. Warning conditions produce diagnostics but allow scoring to proceed.
@@ -79,7 +79,7 @@ Fatal conditions stop scoring immediately and return an error to the participant
 Given a single block of submission rows and the corresponding row of `test.cands.tsv` (which provides the candidate set), the scorer:
 
 1. Reads `TgtCandidates` from the cands row to obtain the canonical 50-element candidate set $C_q$ for this query.
-2. Builds a $(\mathrm{TgtEntity}, \mathrm{Relation}) \rightarrow \mathrm{Score}$ map from the block. Duplicates max-merge; missing pairs default to $0.0$.
+2. Builds a $(\mathrm{TgtEntity}, \mathrm{Relation}) \rightarrow \mathrm{Score}$ map from the block. Duplicates max-merge; missing pairs default to $-\infty$ (genuinely last-rank whatever the submitted score range).
 3. Materialises a 150-row ranked list by walking the canonical ordering $(\mathrm{candidate}, \mathrm{relation})$ for $\mathrm{candidate} \in \mathrm{sorted}(C_q)$ and $\mathrm{relation} \in R_A$ (in canonical order), and looking up each pair's score.
 4. Sorts the 150 rows by descending `Score` with the deterministic tie-break (`TgtEntity` ascending, then relation order).
 5. Computes the per-query contribution to each metric family using the per-`(SrcEntity, QueryID)` gold and gain tables — see [metric_families.md](metric_families.md).

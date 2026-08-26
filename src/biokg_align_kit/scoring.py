@@ -105,15 +105,12 @@ def load_answers(
 
     Supports both shapes:
 
-    * **Train/valid public cands** (7 columns):
-      SrcEntity, QueryID, GoldTarget, Relation, TgtEntities,
-      Relations, TgtCandidates. Gold is read from TgtEntities
-      and Relations (list-valued); GoldTarget and Relation
-      are the singleton form and are ignored here.
-    * **Private test answers** (same shape; QueryID retained).
-    * **Legacy v0.1.2 cands** (4 columns, no QueryID): SrcEntity,
-      TgtEntities, Relations, TgtCandidates. The missing QueryID
-      defaults to "Q0".
+    * **Train/valid public cands and private test answers** (5 columns):
+      SrcEntity, QueryID, TgtEntities, Relations, TgtCandidates.
+      Gold is read from the list-valued TgtEntities and Relations.
+    * **Legacy / hand-rolled inputs**: singleton TgtEntity and Relation
+      columns are accepted where the list-valued columns are absent, and
+      a missing QueryID defaults to "Q0".
 
     Returns
     -------
@@ -185,11 +182,10 @@ def load_preferred_pairs(
     -------
     dict[(SrcEntity, QueryID), (TgtEntity, Relation)]
         Per-query preferred pair. Empty dict if path does not
-        exist. Each query has exactly one preferred pair under the
-        canonical v0.2.0 build; duplicate rows for the same key are
-        silently deduplicated, last write wins (organiser-side emit
-        guarantees uniqueness, so this branch only fires on
-        hand-rolled inputs).
+        exist. The release contract guarantees exactly one preferred
+        pair per query; a duplicate (SrcEntity, QueryID) key is a
+        malformed input and raises rather than silently overwriting
+        one pair with the other.
     """
     path = Path(path)
     if not path.exists():
@@ -198,7 +194,15 @@ def load_preferred_pairs(
     for row in read_tsv(path):
         src = row["SrcEntity"]
         query_id = row.get("QueryID", "Q0")
-        preferred[(src, query_id)] = (row["TgtEntity"], row["Relation"])
+        key = (src, query_id)
+        if key in preferred:
+            raise ValueError(
+                f"{path}: duplicate preferred pair for query {key!r} "
+                f"({preferred[key]!r} and ({row['TgtEntity']!r}, "
+                f"{row['Relation']!r})); the release contract requires exactly "
+                "one preferred typed answer per query"
+            )
+        preferred[key] = (row["TgtEntity"], row["Relation"])
     return preferred
 
 
@@ -356,6 +360,14 @@ def load_block_format_predictions(
                     f"Block-format submission row {row_idx}: Score "
                     f"{score_str!r} is not parseable as a float."
                 ) from None
+            if not math.isfinite(score):
+                # NaN/inf poison the sort order (submission_format.md:
+                # "Any finite float is valid; NaN and infinity are rejected")
+                raise ValueError(
+                    f"Block-format submission row {row_idx}: Score "
+                    f"{score_str!r} is not a finite float; NaN and infinity "
+                    f"are rejected."
+                )
 
             if tgt not in block_candidates:
                 # Silent: drop rows whose TgtEntity isn't in the
@@ -391,14 +403,18 @@ def load_block_format_predictions(
                 if key in block_index:
                     score_val = block_index[key]
                 else:
-                    score_val = 0.0
+                    # -inf, not 0.0: negative scores are explicitly allowed, and a
+                    # 0.0 fill would outrank every negative-scored real prediction.
+                    score_val = float("-inf")
                     missing_pairs.append(key)
                 enriched.append({
                     "SrcEntity": block_src,
                     "QueryID": block_query_id,
                     "TgtEntity": tgt,
                     "Relation": rel,
-                    "Score": f"{score_val:.6f}",
+                    # repr round-trips float64 exactly; %.6f collapsed sub-1e-6
+                    # score gaps into ties re-ordered by the alphabetical tie-break
+                    "Score": repr(score_val),
                 })
 
         if missing_pairs:
@@ -407,7 +423,7 @@ def load_block_format_predictions(
                 f"QueryID {block_query_id!r}): "
                 f"{len(missing_pairs)} canonical (TgtEntity, Relation) "
                 f"pair(s) missing from the submission; assigned score "
-                f"0.0 (effective last-rank). First few: "
+                f"-inf (last-rank). First few: "
                 f"{missing_pairs[:5]}"
                 + (" ..." if len(missing_pairs) > 5 else ""),
                 UserWarning,
@@ -532,7 +548,9 @@ def score_prediction_rows(
             1 if (row["TgtEntity"], row["Relation"]) in gold else 0
             for row in ranked
         ]
-        ndcgs.append(ndcg(relevance, min(k, len(ranked)), ideal_count=len(gold)))
+        # k unchanged: DCG self-truncates via relevance[:k]; shrinking k here
+        # also shrank the IDCG denominator, inflating short row-format lists
+        ndcgs.append(ndcg(relevance, k, ideal_count=len(gold)))
         mrrs.append(reciprocal_rank(relevance))
         hits1.append(1.0 if any(relevance[:1]) else 0.0)
         hits5.append(1.0 if any(relevance[:5]) else 0.0)
@@ -768,16 +786,31 @@ def score_files(
         stem = answers_path.stem
 
     def _sibling(suffix: str) -> Path | None:
-        """Return the first existing sibling path matching suffix."""
-        # Try directly next to the answers file first.
-        cand = answers_path.with_name(stem + suffix)
-        if cand.exists():
-            return cand
-        # The kit examples and the canonical release-private layout
-        # place the metric files under an adjacent answers/ or
-        # the same directory; both are covered by the with_name call
-        # above. No further search to keep the discovery rule
-        # predictable.
+        """Return the first existing metric file for this answers file.
+
+        Probes, in order: the same directory (kit examples layout), the same
+        directory with a split-qualified name, and the organiser private
+        release layout (hidden_test_answers/ with preferred_pairs/ and
+        graded_relevance/ as sibling directories, files named
+        <task>.test<suffix>).
+        """
+        candidates = [
+            answers_path.with_name(stem + suffix),
+            answers_path.with_name(stem + ".test" + suffix),
+        ]
+        if answers_path.parent.name == "hidden_test_answers":
+            task_stem = stem[: -len(".answers")] if stem.endswith(".answers") else stem
+            sibling_dir = {
+                ".preferred.tsv": "preferred_pairs",
+                ".graded.tsv": "graded_relevance",
+            }.get(suffix)
+            if sibling_dir is not None:
+                candidates.append(
+                    answers_path.parent.parent / sibling_dir / f"{task_stem}.test{suffix}"
+                )
+        for cand in candidates:
+            if cand.exists():
+                return cand
         return None
 
     preferred_pairs: dict[tuple[str, str], tuple[str, str]] | None = None

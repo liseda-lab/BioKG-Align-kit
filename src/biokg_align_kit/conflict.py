@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import json
 import shutil
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -204,11 +205,36 @@ def _quote(value: str) -> str:
     return f'"{escaped}"'
 
 
+def _atom_arguments(atom: str) -> list[str]:
+    """Decode the quoted arguments of a rendered fact atom back to raw strings.
+
+    Atoms are produced by _quote above, so the only escapes are backslash and
+    quote (embedded newlines cannot round-trip through a TSV row and stay
+    escaped).
+    """
+    values = []
+    for match in re.finditer(r'"((?:[^"\\]|\\.)*)"', atom):
+        raw = match.group(1)
+        values.append(raw.replace('\\"', '"').replace("\\\\", "\\"))
+    return values
+
+
+def _souffle_jobs() -> str:
+    """Souffle thread count: single-threaded evaluation of a release-sized
+    program is hours; a handful of threads is minutes."""
+    import os
+
+    return str(max(1, min(16, os.cpu_count() or 1)))
+
+
 def _baseline_cache_key(
     graph_dir: Path,
     souffle_bin: str,
 ) -> tuple[str, tuple[tuple[str, int, int], ...], str]:
-    names = ("facts.dl", "owl2rl_core.dl", "conflict_rules.dl")
+    names = ["facts.dl", "owl2rl_core.dl", "conflict_rules.dl"]
+    # The .input fact layout keeps the atoms in per-relation TSVs next to the
+    # facts.dl driver; they are part of the program's identity.
+    names.extend(sorted(path.name for path in graph_dir.glob("*.facts")))
     stats = tuple(
         (name, (graph_dir / name).stat().st_size, (graph_dir / name).stat().st_mtime_ns)
         for name in names
@@ -234,13 +260,27 @@ def _execute_conflict_program(
         for name in ("owl2rl_core.dl", "conflict_rules.dl"):
             shutil.copyfile(graph_dir / name, work / name)
         facts = (graph_dir / "facts.dl").read_text(encoding="utf-8")
-        if additional_facts:
-            facts = facts.rstrip() + "\n" + "\n".join(additional_facts) + "\n"
-        (work / "facts.dl").write_text(facts, encoding="utf-8")
+        if ".input " in facts:
+            # v1.1 layout: facts.dl is a driver that .inputs one TSV per fact
+            # relation. Copy the TSVs alongside and append the submission's
+            # mapping assertions as extra source_triple rows.
+            (work / "facts.dl").write_text(facts, encoding="utf-8")
+            for path in graph_dir.glob("*.facts"):
+                shutil.copyfile(path, work / path.name)
+            if additional_facts:
+                extra_rows = [_atom_arguments(atom) for atom in additional_facts]
+                with (work / "source_triple.facts").open("a", encoding="utf-8") as handle:
+                    for row in extra_rows:
+                        handle.write("\t".join(row) + "\n")
+        else:
+            # legacy v1 layout: inline atoms; append the submission facts textually
+            if additional_facts:
+                facts = facts.rstrip() + "\n" + "\n".join(additional_facts) + "\n"
+            (work / "facts.dl").write_text(facts, encoding="utf-8")
         output_dir = work / "output"
         output_dir.mkdir()
         result = subprocess.run(
-            [executable, "-D", str(output_dir), "conflict_rules.dl"],
+            [executable, "-j", _souffle_jobs(), "-D", str(output_dir), "conflict_rules.dl"],
             cwd=work, text=True, capture_output=True, check=False,
         )
         if result.returncode != 0:

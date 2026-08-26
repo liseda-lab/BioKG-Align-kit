@@ -85,7 +85,7 @@ Partial credit for ancestors/descendants at hierarchical distance $d$:
 
 ## Diagnostic family (kit-only)
 
-Relation-aware binary relevance against the per-query gold set. In the v0.2.0 release the gold set is a single primary pair (N=1, ADR-48), so `diagnostic_mrr`/`diagnostic_hits_at_*`/`diagnostic_map` coincide with the corresponding `preferred_typed_*` values; the family's purpose is a quick local signal emitted **even when the `*.preferred.tsv` and `*.graded.tsv` sidecars are absent** (the headline families are not).
+Relation-aware binary relevance against the per-query gold set. Since v0.2.0 the gold set is a single primary pair (N=1, ADR-48), so `diagnostic_mrr`/`diagnostic_hits_at_*`/`diagnostic_map` coincide with the corresponding `preferred_typed_*` values; the family's purpose is a quick local signal emitted **even when the `*.preferred.tsv` and `*.graded.tsv` sidecars are absent** (the headline families are not).
 
 - `diagnostic_relation_aware_ndcg_at_10` — binary nDCG@10 over the gold pair (positional discount; distinct from the graded `hierarchy_aware_typed_ndcg_at_10`).
 - `diagnostic_mrr`, `diagnostic_hits_at_{1,5,10}` — reciprocal-rank / hit-rate of the gold pair.

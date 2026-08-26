@@ -236,6 +236,12 @@ def _load_program(path: Path, resolve_includes: bool, seen: set[Path]) -> Progra
                 directives.extend(included.directives)
                 facts.extend(included.facts)
                 rules.extend(included.rules)
+            if directive.name == "input":
+                # The v1.1 release layout ships facts as one TSV per relation,
+                # referenced from facts.dl via .input directives. Resolving them
+                # here keeps load_facts/load_program returning the same Fact
+                # objects an inline facts file would have produced.
+                facts.extend(_load_input_facts(lineno, directive.value, path.parent))
             continue
         statement = _parse_statement(lineno, content)
         if isinstance(statement, Fact):
@@ -245,8 +251,40 @@ def _load_program(path: Path, resolve_includes: bool, seen: set[Path]) -> Progra
     return Program(tuple(directives), tuple(facts), tuple(rules))
 
 
+def _load_input_facts(lineno: int, value: str, base_dir: Path) -> list[Fact]:
+    """Materialize the facts referenced by one ``.input`` directive."""
+    match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)\s*$", value)
+    if not match:
+        raise ValueError(f"Line {lineno}: malformed .input directive: {value!r}.")
+    relation = match.group(1)
+    params = dict(
+        (part.split("=", 1) + [""])[:2]
+        for part in (piece.strip() for piece in match.group(2).split(","))
+        if part
+    )
+    filename = params.get("filename", f"{relation}.facts").strip().strip('"')
+    delimiter = params.get("delimiter", "\t").strip().strip('"')
+    delimiter = bytes(delimiter, "utf-8").decode("unicode_escape") or "\t"
+    facts_path = base_dir / filename
+    if not facts_path.exists():
+        raise FileNotFoundError(
+            f"Line {lineno}: .input relation {relation!r} references {facts_path}, "
+            "which does not exist next to the program file."
+        )
+    facts: list[Fact] = []
+    for line in facts_path.read_text(encoding="utf-8").splitlines():
+        if not line:
+            continue
+        args = tuple(
+            '"' + column.replace("\\", "\\\\").replace('"', '\\"') + '"'
+            for column in line.split(delimiter)
+        )
+        facts.append(Fact(Atom(relation, args)))
+    return facts
+
+
 def load_facts(path: str | Path) -> list[Fact]:
-    """Read a facts-only file. Soufflé directives are ignored."""
+    """Read a facts file. Inline atoms and ``.input``-referenced TSVs both count."""
     program = load_program(path, resolve_includes=False)
     if program.rules:
         raise ValueError(f"{path}: expected facts but found {len(program.rules)} rule(s). Use load_rules().")

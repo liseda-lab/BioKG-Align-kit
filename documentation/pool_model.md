@@ -1,6 +1,10 @@
 # The pool model
 
-Under the canonical build, each source entity contributes two queries, not one. This document explains what the pool model looks like in the released files and why the kit keys every per-query lookup by $(\mathrm{SrcEntity}, \mathrm{QueryID})$.
+Under the canonical build, each source entity contributes two queries, not one.
+(Sources with several reference mappings and no equivalence contribute one
+single-gold query per mapping — `Q0..Qn` — with the other mappings' targets
+excluded from each query's pool, so every ⟨query, candidate-set⟩ pair contains
+exactly one correct answer.) This document explains what the pool model looks like in the released files and why the kit keys every per-query lookup by $(\mathrm{SrcEntity}, \mathrm{QueryID})$.
 
 ## What the pool model means
 
@@ -14,11 +18,11 @@ The two queries share the same `SrcEntity` but have distinct `QueryID` values (`
 Under the canonical build at fraction=1.0:
 
 ```text
-N_sources (test) = 15,550
-N_queries (test) = 30,216   # 15,550 Q0 (equivalence) + 14,666 Q1 (subsumption-only)
+N_sources (test) = 15,168
+N_queries (test) = 29,490   # 15,168 Q0 (equivalence) + 14,322 Q1 (subsumption-only)
 ```
 
-The `tasks/<task>/test.cands.tsv` file therefore has 30,216 rows across the three task pairs (the same `SrcEntity` appears on consecutive rows for the sources that contribute both queries; some sources yield only Q0, so the 14,666 Q1 queries are slightly fewer than the 15,550 sources), and the corresponding submission has $30{,}216 \times 150 = 4{,}532{,}400$ rows.
+The `tasks/<task>/test.cands.tsv` file therefore has 29,490 rows across the three task pairs (the same `SrcEntity` appears on consecutive rows for the sources that contribute both queries; some sources yield only Q0, so the 14,322 Q1 queries are slightly fewer than the 15,168 sources), and the corresponding submission has $29{,}490 \times 150 = 4{,}423{,}500$ rows.
 
 ## What this looks like on disk
 
@@ -32,7 +36,7 @@ NCIT:C002   Q0       ['DOID:D002']  ['equivalent']                  [...50 candi
 NCIT:C002   Q1       ['DOID:D000']  ['source_subsumed_by_target']   [...50 candidates...]
 ```
 
-The `tasks/<task>/test.cands.tsv` file is two-column (no `QueryID`, no gold) — the participant has no information about which queries are Q0 vs Q1 for the test split. The same source appears twice on adjacent rows; the scorer recovers the `QueryID` positionally from the private organiser-side answers file.
+The `tasks/<task>/test.cands.tsv` file is two-column (no `QueryID`, no gold) — the participant has no information about which queries are Q0 vs Q1 for the test split. Candidate lists are in canonical (sorted) order: the ordering carries no information about the gold. The same source appears twice on adjacent rows; the scorer recovers the `QueryID` positionally from the private organiser-side answers file.
 
 The `tasks/<task>/{train,valid}.preferred.tsv` file likewise carries `QueryID`:
 

@@ -38,7 +38,7 @@
   "name": "BioKG-Align",
   "description": "The released BioKG-Align package — the unified graph, candidate sets, and the public/private split.",
   "url": "https://biokg-align.lasige.di.ciencias.ulisboa.pt/data/",
-  "version": "v0.2.0-rc3",
+  "version": "v0.3.0-rc1",
   "keywords": ["NCI Thesaurus", "Human Disease Ontology", "Orphanet Rare Disease Ontology", "SNOMED CT", "Foundational Model of Anatomy", "ontology alignment", "knowledge graph", "typed link prediction"],
   "license": [{ "@type": "CreativeWork", "name": "CC BY 4.0" }, { "@type": "CreativeWork", "name": "CC0 1.0" }, { "@type": "CreativeWork", "name": "CC BY 4.0" }, { "@type": "CreativeWork", "name": "FMA License" }, { "@type": "CreativeWork", "name": "SNOMED CT Affiliate License" }]
 }
@@ -118,8 +118,8 @@
         <td class="py-3 pr-4"><code class="text-xs">graph/properties.csv</code></td>
         <td class="py-3 text-muted">Node identifiers, ontology membership, labels, synonyms, definitions, and permitted metadata.</td>
       </tr><tr class="border-b border-line align-top">
-        <td class="py-3 pr-4"><code class="text-xs">graph/rules.dl</code></td>
-        <td class="py-3 text-muted">Selected Datalog-compatible rules derived from ontology axioms.</td>
+        <td class="py-3 pr-4"><code class="text-xs">graph/*.dl, graph/*.facts, graph/datalog_terms.tsv</code></td>
+        <td class="py-3 text-muted">The OWL 2 RL Datalog bundle: <code>facts.dl</code> (a Soufflé <code>.input</code> driver) with one <code>&lt;relation&gt;.facts</code> TSV per fact relation, <code>owl2rl_core.dl</code> (rule core), <code>rules.dl</code> (closure driver), <code>conflict_rules.dl</code> (conflict driver), the <code>datalog_terms.tsv</code> symbol dictionary and <code>datalog_schema.json</code>. Since v0.3.0 the fact base is curated so the shipped theory cannot contradict the reference alignment (disjointness axioms inconsistent with the complete reference are removed; list-based disjointness is withheld — declared in the data card and machine-readable in the schema). The data card is the authoritative inventory.</td>
       </tr><tr class="border-b border-line align-top">
         <td class="py-3 pr-4"><code class="text-xs">alignments/{train,valid}.tsv</code></td>
         <td class="py-3 text-muted">Public supervised labels with their relation types.</td>
@@ -178,8 +178,9 @@
 
   <h2 class="mt-12 text-2xl">Hosting &amp; distribution</h2>
   <p class="mt-3 text-muted">
-    The dataset is distributed as a standalone public artefact; the hosting platform
-    and DOI are not yet finalised, and an offline archive is planned for Zenodo distribution. <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></p>
+    The dataset is distributed as a standalone public artefact, planned as a
+    Hugging Face dataset release with an offline archive on Zenodo; the DOI is
+    not yet finalised. <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></p>
 </section>
 
   </main>
@@ -187,7 +188,7 @@
   <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 md:grid-cols-4">
     <div>
       <p class="font-display text-lg font-semibold text-ink">BioKG-Align</p>
-      <p class="mt-2 max-w-[34ch] text-sm text-muted">Biomedical ontology alignment as typed link prediction. A NeurIPS 2026 Competition Track Proposal.</p>
+      <p class="mt-2 max-w-[34ch] text-sm text-muted">Biomedical ontology alignment as typed link prediction. An AAAI 2027 Competition Proposal.</p>
     </div>
     <nav aria-label="Site map">
       <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Explore</h2>
@@ -211,13 +212,13 @@
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
         <li>Licence</li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.2.0-rc3</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.0</a></li>
       </ul>
     </div>
   </div>
   <div class="mx-auto max-w-6xl px-4 pb-12">
     <p class="border-t border-line pt-6 text-xs text-muted">
-      Last updated 2 June 2026. Pre-launch draft — final data,
+      Last updated 26 August 2026. Pre-launch draft — final data,
       rules, dates, platform, and contact are announced after readiness and licensing
       review. Systems are research prototypes and must not claim clinical validity.
     </p>

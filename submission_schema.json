@@ -102,7 +102,7 @@
     },
     "validation_rules": {
       "type": "object",
-      "description": "Strictness rules applied by the platform scorer (`load_block_format_predictions`) and by the kit's local validator (`validate_submission`). See `documentation.md §4.4`.",
+      "description": "Strictness rules applied by the platform scorer (`load_block_format_predictions`) and by the kit's local validator (`validate_submission`). See `documentation/block_scoring.md (Strictness rules)`.",
       "properties": {
         "fatal": {
           "type": "array",
@@ -111,7 +111,7 @@
             "Total row count != N_queries * block_size",
             "Block contains rows for a SrcEntity disagreeing with cands.tsv",
             "Row's Relation not in submission.relations",
-            "Score not parseable as float"
+            "Score not parseable as a finite float (NaN and infinity are rejected)"
           ]
         },
         "warning": {
@@ -119,7 +119,7 @@
           "items": { "type": "string" },
           "const": [
             "Duplicate (TgtEntity, Relation) pair within a block (platform keeps max score)",
-            "Missing canonical (TgtEntity, Relation) pair within a block (platform assigns score 0.0)"
+            "Missing canonical (TgtEntity, Relation) pair within a block (platform assigns score -inf, i.e. last-rank)"
           ]
         },
         "silent_filter": {

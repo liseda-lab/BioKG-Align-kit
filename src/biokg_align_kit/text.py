@@ -1,13 +1,37 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 
 _PUNCT = re.compile(r"[^a-z0-9]+")
 
+# Kept identical to the organiser implementation: Greek letters are
+# meaning-bearing in biomedical labels (IFN-α vs IFN-γ), so they transliterate
+# to their names instead of vanishing as punctuation; NFKD then strips
+# combining accents so e.g. 'é' survives as 'e'.
+_GREEK_TRANSLITERATION = {
+    "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ε": "epsilon",
+    "ζ": "zeta", "η": "eta", "θ": "theta", "ι": "iota", "κ": "kappa",
+    "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi", "ο": "omicron",
+    "π": "pi", "ρ": "rho", "σ": "sigma", "ς": "sigma", "τ": "tau",
+    "υ": "upsilon", "φ": "phi", "χ": "chi", "ψ": "psi", "ω": "omega",
+}
+_GREEK_PATTERN = re.compile("|".join(_GREEK_TRANSLITERATION))
+
+
+def _transliterate(value: str) -> str:
+    lowered = value.lower()
+    if _GREEK_PATTERN.search(lowered):
+        lowered = _GREEK_PATTERN.sub(
+            lambda match: f" {_GREEK_TRANSLITERATION[match.group(0)]} ", lowered
+        )
+    decomposed = unicodedata.normalize("NFKD", lowered)
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
 
 def normalize_text(value: str) -> str:
-    normalized = _PUNCT.sub(" ", value.lower()).strip()
+    normalized = _PUNCT.sub(" ", _transliterate(value)).strip()
     return " ".join(normalize_plural(token) for token in normalized.split() if token)
 
 
@@ -40,7 +64,11 @@ def cosine_counter(left: Counter[str], right: Counter[str]) -> float:
 
 
 def lexical_score(left: str, right: str) -> float:
-    exact = 1.0 if normalize_text(left) == normalize_text(right) else 0.0
+    left_norm = normalize_text(left)
+    right_norm = normalize_text(right)
+    # guard against both being empty: an entity with no label/synonyms
+    # must not score 1.0 against any other unlabelled entity
+    exact = 1.0 if left_norm and left_norm == right_norm else 0.0
     left_tokens = set(tokenize(left))
     right_tokens = set(tokenize(right))
     jaccard = len(left_tokens & right_tokens) / len(left_tokens | right_tokens) if left_tokens and right_tokens else 0.0

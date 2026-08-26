@@ -10,7 +10,7 @@ The main track asks a single question over a unified biomedical graph: given a s
 
 - a local scorer with the preferred, Hierarchy-Aware Typed nDCG@10, and diagnostic metric families
 - a block-format submission validator (`verify`)
-- the simple `random` and `lexical` baselines
+- the simple `random` and `hybrid_lexical` baselines
 - three example fixtures:
   - `mini` - compact, human-readable
   - `canonical` - 50 candidates per query, production shape
@@ -19,7 +19,7 @@ The main track asks a single question over a unified biomedical graph: given a s
 - a `build-graded-relevance` helper for the Hierarchy-Aware gain table
 - specifications found under [documentation/](documentation/README.md)
 
-The [official dataset](#) is distributed separately as a public data artifact. Participants should download that artifact, train their methods, and use this kit to validate submissions and reproduce baseline formats.
+The [official dataset](https://biokg-align.lasige.di.ciencias.ulisboa.pt/data/) (not yet released; see the Data page for status) is distributed separately as a public data artifact. Participants should download that artifact, train their methods, and use this kit to validate submissions and reproduce baseline formats.
 
 ## Install
 

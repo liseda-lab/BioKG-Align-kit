@@ -3,7 +3,7 @@ Block-format submission validator for BioKG-Align.
 
 Per paper §2.1, a well-formed submission must contain exactly
 |C_q| * |R_A| = 50 * 3 = 150 rows per query. Missing pairs are filled
-with score 0.0 (effective last-rank) by the platform-side evaluation
+with score -inf (last-rank) by the platform-side evaluation
 pipeline; this validator treats missing pairs as a *warning* so that
 participants are informed early without having their local validation fail.
 
@@ -19,6 +19,8 @@ with errors and warnings lists.
 """
 
 from __future__ import annotations
+
+import math
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -103,21 +105,30 @@ def validate_submission(
       * Duplicate (TgtEntity, Relation) pair within a block (the
         platform takes the maximum score).
       * Missing canonical (TgtEntity, Relation) pair within a block
-        (the platform assigns score 0.0 = effective last rank).
+        (the platform assigns score -inf = last rank).
     """
     result = ValidationResult()
     relations_tuple = tuple(relations)
     relations_set = set(relations_tuple)
 
-    predictions = read_tsv(predictions_path)
-    if predictions:
-        missing = REQUIRED_COLUMNS - set(predictions[0])
-        if missing:
-            result.errors.append(
-                f"Prediction file is missing columns: {sorted(missing)}"
-            )
+    # Header exactness first, from the raw first line: read_tsv discards the
+    # header and an empty submission has no rows, so this is the only check
+    # that can enforce the documented "exactly SrcEntity\tTgtEntity\t
+    # Relation\tScore" contract on every file.
+    canonical_header = ("SrcEntity", "TgtEntity", "Relation", "Score")
+    with Path(predictions_path).open(encoding="utf-8") as handle:
+        header = tuple(handle.readline().rstrip("\r\n").split("\t"))
+    if header != canonical_header:
+        result.errors.append(
+            f"Prediction file header is {list(header)!r}; the submission "
+            f"format requires exactly {list(canonical_header)!r} in that "
+            f"order (documentation/submission_format.md)."
+        )
+        if set(canonical_header) - set(header):
             # No point doing per-row work without the required columns.
             return result
+
+    predictions = read_tsv(predictions_path)
 
     candidates_rows = list(read_tsv(candidates_path))
     n_queries = len(candidates_rows)
@@ -199,12 +210,18 @@ def validate_submission(
                 )
 
             try:
-                float(sub_score)
+                parsed_score = float(sub_score)
             except (TypeError, ValueError):
                 result.errors.append(
                     f"Line {row_line}: Score {sub_score!r} is not "
                     f"parseable as a float."
                 )
+            else:
+                if not math.isfinite(parsed_score):
+                    result.errors.append(
+                        f"Line {row_line}: Score {sub_score!r} is not a "
+                        f"finite float; NaN and infinity are rejected."
+                    )
 
             if sub_tgt not in block_candidates_set:
                 result.warnings.append(
@@ -240,8 +257,8 @@ def validate_submission(
                 f"submission covers "
                 f"{len(canonical_pairs - missing)}/{len(canonical_pairs)} "
                 f"canonical (TgtEntity, Relation) pairs. The platform "
-                f"will assign score 0.0 to the missing "
-                f"{len(missing)} pair(s) (effective last-rank)."
+                f"will assign score -inf to the missing "
+                f"{len(missing)} pair(s) (last-rank)."
             )
 
     return result
