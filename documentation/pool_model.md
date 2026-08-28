@@ -18,11 +18,11 @@ The two queries share the same `SrcEntity` but have distinct `QueryID` values (`
 Under the canonical build at fraction=1.0:
 
 ```text
-N_sources (test) = 15,168
-N_queries (test) = 29,490   # 15,168 Q0 (equivalence) + 14,322 Q1 (subsumption-only)
+N_sources (test) = 15,160
+N_queries (test) = 29,474   # 15,160 Q0 (equivalence) + 14,314 Q1 (subsumption-only)
 ```
 
-The `tasks/<task>/test.cands.tsv` file therefore has 29,490 rows across the three task pairs (the same `SrcEntity` appears on consecutive rows for the sources that contribute both queries; some sources yield only Q0, so the 14,322 Q1 queries are slightly fewer than the 15,168 sources), and the corresponding submission has $29{,}490 \times 150 = 4{,}423{,}500$ rows.
+The `tasks/<task>/test.cands.tsv` file therefore has 29,474 rows across the three task pairs (the same `SrcEntity` appears on consecutive rows for the sources that contribute both queries; some sources yield only Q0, so the 14,314 Q1 queries are slightly fewer than the 15,160 sources), and the corresponding submission has $29{,}474 \times 150 = 4{,}421{,}100$ rows.
 
 ## What this looks like on disk
 

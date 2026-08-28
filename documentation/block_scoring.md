@@ -43,11 +43,11 @@ This is the order in which per-task `test.cands.tsv` files are conceptually conc
 
 | Quantity | Value |
 |----------|-------|
-| `N_queries` (test) | `29,490` |
+| `N_queries` (test) | `29,474` |
 | `block_size` | `150` |
-| `N_rows` total | `4,423,500` |
+| `N_rows` total | `4,421,100` |
 
-A correctly-shaped submission is therefore a 4,423,500-row file (plus one header line).
+A correctly-shaped submission is therefore a 4,421,100-row file (plus one header line).
 
 Per task, in the canonical concatenation order:
 
@@ -55,8 +55,8 @@ Per task, in the canonical concatenation order:
 |------|-------------:|--------------------------:|
 | NCIT-DOID   | 3,688  | 553,200   |
 | SNOMED-FMA  | 5,153  | 772,950   |
-| SNOMED-NCIT | 20,649 | 3,097,350 |
-| **Total**   | **29,490** | **4,423,500** |
+| SNOMED-NCIT | 20,633 | 3,094,950 |
+| **Total**   | **29,474** | **4,421,100** |
 
 ## Strictness rules
 

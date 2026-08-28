@@ -234,15 +234,13 @@
     <span class="eyebrow">Status &amp; schedule</span>
     <h2 class="mt-3 text-2xl">Current competition status</h2>
     <p class="mt-4 text-muted"><span class="font-semibold text-ink">Status:</span> In preparation</p>
-    <p class="mt-3 text-sm text-muted"><span class="font-semibold text-ink">Latest (kit v0.3.0):</span>
-      the released Datalog facts are now curated so the shipped theory cannot contradict the
-      reference alignment: pairwise disjointness axioms inconsistent with the complete reference
-      were removed (105 of 26,553) and list-based disjointness is withheld entirely — declared
-      up front in the data card. The retained constraints are certified reference-consistent,
-      which makes conflict scoring and canary coherence checks sound wrongness signals for
-      candidate mappings. (v0.2.1 hardened the scoring contract: non-finite scores rejected,
-      missing pairs fill at genuine last rank, one preferred typed answer per query, and the
-      Datalog facts ship as Soufflé <code>.input</code> TSVs runnable at release scale.)</p><dl class="mt-6 space-y-3"><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
+    <p class="mt-3 text-sm text-muted"><span class="font-semibold text-ink">Latest (kit v0.3.2):</span>
+      the entity set is now classes only — the 137 SNOMED concepts that function as
+      properties in SNOMED's own OWL (but that RF2 lists as ordinary concepts) are
+      excluded from entities and queries, keeping their role as relation types. The released Datalog facts remain
+      curated so the shipped theory cannot contradict the reference alignment; canary coherence checks are also sound with respect to candidate
+      mappings.
+      Datalog facts ship as Soufflé <code>.input</code> TSVs runnable at release scale.</p><dl class="mt-6 space-y-3"><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
         <dt class="text-muted">Starting Kit Release</dt>
         <dd class="text-ink">TBA <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></dd>
       </div><div class="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line pb-2">
@@ -288,13 +286,13 @@
       <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Project</h2>
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.0</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.2</a></li>
       </ul>
     </div>
   </div>
   <div class="mx-auto max-w-6xl px-4 pb-12">
     <p class="border-t border-line pt-6 text-xs text-muted">
-      Last updated 26 August 2026. Pre-launch draft — final data,
+      Last updated 28 August 2026. Pre-launch draft — final data,
       rules, dates, platform, and contact are announced after readiness and licensing
       review. Systems are research prototypes and must not claim clinical validity.
     </p>

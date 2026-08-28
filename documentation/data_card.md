@@ -1,12 +1,14 @@
-# Data Card — BioKG-Align v0.3.0
+# Data Card — BioKG-Align v0.3.2
 
 This data card describes the public artifacts released for the BioKG-Align competition (AAAI 2027). It includes concrete file-level documentation aimed at participants integrating the data into their pipelines. For the other kit-side reference documents see the rest of this directory.
 
 ## Overview
 
-BioKG-Align is a typed link-prediction benchmark over a unified biomedical knowledge graph projected from five OWL ontologies: SNOMED CT, NCIT, FMA, ORDO, and DOID. The competition graph contains 723,938 nodes and 2,180,708 triples; upstream cross-reference resources are used to construct the reference alignments but are not released as task ontologies in the graph.
+BioKG-Align is a typed link-prediction benchmark over a unified biomedical knowledge graph projected from five OWL ontologies: SNOMED CT, NCIT, FMA, ORDO, and DOID. The competition graph contains 723,801 nodes and 2,180,571 triples; upstream cross-reference resources are used to construct the reference alignments but are not released as task ontologies in the graph.
 
-The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. The release contains 29,490 test queries across 15,168 source entities. Each query has 50 candidate target entities and three relation types, producing a 150-row submission block per query.
+The entity set is **classes only**: SNOMED concepts that function as properties in SNOMED's own OWL (137 concept-model object and concrete-domain data properties, which RF2 lists as ordinary concepts) are excluded from the entities, queries, and graph nodes. They keep their role as relation types in `triples.csv` and their property axioms in the Datalog layer.
+
+The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. The release contains 29,474 test queries across 15,160 source entities. Each query has 50 candidate target entities and three relation types, producing a 150-row submission block per query.
 
 ## Released artifacts
 
@@ -102,9 +104,9 @@ Canonical Soufflé-compatible OWL 2 RL/RDF files. `facts.dl` is the fact-loading
 
 When the scorer is given `--graph-dir`, it inserts the submission's top mapping per query as temporary RDF facts and reports only inconsistencies that were not already present in the baseline public graph. This is an OWL 2 RL Datalog inconsistency metric, not a full-OWL unsatisfiable-class count. The same program can drive a coherence check via canary individuals (`building_with_kit.md`, Workflow 8).
 
-**Withheld axiom families (declared post-processing, v0.3.0).** The released fact base is curated so that the shipped theory cannot contradict the reference alignment: pairwise disjointness axioms inconsistent with the complete reference alignment were removed (105 of 26,553), and list-based disjointness (`owl:AllDisjointClasses`) is withheld entirely, as are `owl:FunctionalProperty` / `owl:InverseFunctionalProperty` typings. The exact aggregate counts ship machine-readably in `datalog_schema.json` (`withheld_axiom_families`, `disjointness_curation`); the build verifies that canary probing of the released facts — alone, or with any subset of the reference alignment merged — yields **zero** inconsistency witnesses. Two consequences participants can rely on:
+**Reference-consistency curation (declared post-processing, since v0.3.1).** The released fact base is curated so that the shipped theory cannot contradict the reference alignment, removing the **minimal** clashing fact set and nothing else: pairwise disjointness axioms inconsistent with the complete reference alignment are removed (105 of 26,553); an `owl:AllDisjointClasses` list containing a clashing member-pair is decomposed into pairwise `owl:disjointWith` facts for its non-clashing pairs (527 of 7,142 lists decomposed, removing 2,218 clashing member-pairs and emitting 147,966 non-clashing pairwise facts; the other 6,615 lists ship untouched); and an `owl:FunctionalProperty` / `owl:InverseFunctionalProperty` typing is removed only where probing shows it produces inconsistency witnesses (7 of 27, all FMA value-slot properties). Everything else — including all remaining list-based disjointness — ships intact, so the export stays maximally complete under OWL 2 RL. The exact aggregate counts ship machine-readably in `datalog_schema.json` (`disjointness_curation`); the build verifies that canary probing of the released facts — alone, or with any subset of the reference alignment merged — yields **zero** inconsistency witnesses. Two consequences participants can rely on:
 
-- The retained `owl:disjointWith` axioms are **certified consistent with every reference mapping**: if merging one of your candidate mappings induces an inconsistency, that mapping is not in the reference. Conflict counts (Workflow 5) and canary checks (Workflow 8) are therefore sound pruning signals.
+- The retained disjointness (pairwise and list-based alike) is **certified consistent with every reference mapping**: if merging one of your candidate mappings induces an inconsistency, that mapping is not in the reference. Conflict counts (Workflow 5) and canary checks (Workflow 8) are therefore sound pruning signals.
 - A clean check is expected, not evidence of full-OWL coherence: the curation removes real upstream axioms (the evidence-based reference is not DL-coherent against them), axioms with existential superclasses (`C ⊑ ∃R.D`) remain outside OWL 2 RL and excluded from the facts (visible quantifier-free as projected edges in `triples.csv`), and full-ontology reasoning requires the upstream OWL sources with a DL reasoner.
 
 ### `alignments/train.tsv`, `alignments/valid.tsv`
@@ -183,7 +185,7 @@ SrcEntity   TgtEntity   Relation   Score
 
 Submission rows are grouped positionally into per-query blocks of size 150 (`candidate_count x |submission.relations|`, 50 $\times$ 3 = 150). Block `k` corresponds to the k-th row of the concatenated `test.cands.tsv` files (canonical task order: NCIT-DOID, SNOMED-FMA, SNOMED-NCIT — see `../submission_schema.json`).
 
-For the canonical build (29,490 test queries), a full submission is `29,490 x 150 = 4,423,500` rows.
+For the canonical build (29,474 test queries), a full submission is `29,474 x 150 = 4,421,100` rows.
 
 The kit's `verify` CLI command validates the submission locally before upload; see kit README for usage.
 
@@ -212,8 +214,9 @@ Known limitations:
 
 - **English-only labels.** Released labels and definitions are English-language. Cross-lingual alignment is out of scope.
 - **Snapshot in time.** The ontology versions are the ones listed in the proposal (SNOMED CT 2026-03-01 US edition, etc.). Live ontology updates are not reflected.
+- **Attribute-flavoured classes are in scope.** Concepts the source ontologies type as `owl:Class` — including SNOMED qualifier values and FMA/NCIT attribute classes — remain entities and can carry reference alignments; only OWL-declared properties are excluded (see Overview).
 - **Hidden-test leakage defences are best-effort.** Cross-reference annotations that would directly expose hidden labels are withheld from `properties.csv`, but participants with access to upstream cross-reference resources may be able to reconstruct gold targets through external resources. Competition rules prohibit such reconstruction.
 
 ## Versioning
 
-This data card describes v0.3.0 _(rc1, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 (last built as rc3) froze the one-preferred-gold metric contract; v0.2.1 kept that contract, added the publication-readiness fixes (scoring, leakage, and reproducibility), and moved the Datalog facts to the `.input` layout; v0.3.0 withholds the class-clash axiom families from the released facts (the declared reference-consistency curation above) — it is the version intended for AAAI 2027 release.
+This data card describes v0.3.2 _(rc1, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 (last built as rc3) froze the one-preferred-gold metric contract; v0.2.1 kept that contract, added the publication-readiness fixes (scoring, leakage, and reproducibility), and moved the Datalog facts to the `.input` layout; v0.3.0 withheld the class-clash axiom families from the released facts wholesale; v0.3.1 refines that to the **minimal** reference-clashing fact set (the declared curation above), keeping the export maximally complete under OWL 2 RL; v0.3.2 restricts the entity set to classes only (SNOMED's 137 OWL property concepts are excluded from entities and queries) — it is the version intended for AAAI 2027 release.
