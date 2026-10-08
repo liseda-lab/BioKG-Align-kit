@@ -2,7 +2,9 @@
 
 The BioKG-Align main track reports three metric families. The **preferred-pair** family is the leaderboard primary; the **Hierarchy-Aware Typed nDCG@10** family is the secondary; the **diagnostic** family is kit-only and not on the leaderboard.
 
-All three families are macro-averaged across queries — every query contributes equally to the final score regardless of the size of its gold set or the difficulty of its candidate pool.
+All three families average over queries — every query contributes equally to a task's score
+regardless of the difficulty of its candidate pool — and the leaderboard number is the
+unweighted mean over tasks. Every per-query structure is keyed by the opaque `QueryID`.
 
 ## Preferred-pair family
 
@@ -24,14 +26,15 @@ For each query $q$, one $(\mathrm{target}, \mathrm{relation})$ pair is fixed as 
 \end{cases}
 ```
 
-The macro-averaged scores reported by the kit:
+Keys reported by the kit (per task, and in the `macro` block):
 
-- `preferred_typed_mrr`
-- `preferred_typed_hits_at_1`
-- `preferred_typed_hits_at_5`
-- `preferred_typed_hits_at_10`
+- `preferred_typed_mrr` — the leaderboard **primary** metric;
+- `preferred_typed_hits_at_1`, `preferred_typed_hits_at_5`, `preferred_typed_hits_at_10`;
+- `median_preferred_typed_rank` — median rank of the preferred pair;
+- `preferred_typed_queries` — the number of queries scored (a count).
 
-The leaderboard **headline primary** is the **Macro Preferred Relation-Aware (Typed) MRR** — `preferred_typed_mrr` macro-averaged across queries within a task, and then across the three task pairs (NCIT-DOID, SNOMED-FMA, SNOMED-NCIT). `preferred_typed_hits_at_K` aggregate the same way. The kit's `score` reports the per-(task, split) macro-across-queries value; the across-task macro is the leaderboard combination step.
+The headline is the **Macro Preferred Typed MRR**: `preferred_typed_mrr` averaged over the
+queries of a task, then over the three tasks (NCIT-DOID, SNOMED-FMA, SNOMED-NCIT).
 
 ### Relation Macro-F1 on the Preferred Entity
 
@@ -60,12 +63,12 @@ $$
 \end{aligned}
 $$
 
-Where $p_i$ is the $i$-th $(\mathrm{target}, \mathrm{relation})$ pair in the ranked submission for query $q$ and $\mathrm{gain}_q(\cdot)$ is the per-query graded relevance lookup from `*.graded.tsv`.
+Where $p_i$ is the $i$-th $(\mathrm{target}, \mathrm{relation})$ pair in the ranked submission for query $q$ and $\mathrm{gain}_q(\cdot)$ is the per-query graded relevance lookup from `evaluation/<task>/<split>.graded.tsv`.
 
 Kit outputs:
 
 - `hierarchy_aware_typed_ndcg_at_10` — macro average across queries.
-- `hierarchy_aware_typed_ndcg_at_10_queries` — number of queries that had at least one positive-gain pair (i.e., the metric's support).
+- `hierarchy_aware_typed_ndcg_at_10_queries` — number of queries with a gain table (every query: the preferred pair always has gain 1.0).
 
 ### Gain table (Hierarchy-Aware family)
 
@@ -85,7 +88,10 @@ Partial credit for ancestors/descendants at hierarchical distance $d$:
 
 ## Diagnostic family (kit-only)
 
-Relation-aware binary relevance against the per-query gold set. Since v0.2.0 the gold set is a single primary pair (N=1, ADR-48), so `diagnostic_mrr`/`diagnostic_hits_at_*`/`diagnostic_map` coincide with the corresponding `preferred_typed_*` values; the family's purpose is a quick local signal emitted **even when the `*.preferred.tsv` and `*.graded.tsv` sidecars are absent** (the headline families are not).
+Relation-aware binary relevance against the per-query gold set of the answers file. The
+released answers carry a single gold pair per query (the preferred pair), so
+`diagnostic_mrr`/`diagnostic_hits_at_*`/`diagnostic_map` coincide with the corresponding
+`preferred_typed_*` values; the family is kept for continuity and quick checks.
 
 - `diagnostic_relation_aware_ndcg_at_10` — binary nDCG@10 over the gold pair (positional discount; distinct from the graded `hierarchy_aware_typed_ndcg_at_10`).
 - `diagnostic_mrr`, `diagnostic_hits_at_{1,5,10}` — reciprocal-rank / hit-rate of the gold pair.
@@ -123,10 +129,45 @@ IDCG@10 = same gains sorted descending = 1.0 + 0.6/log2(3) + 0.6/log2(4) + 0.3/l
 nDCG@10 = DCG@10 / IDCG@10
 ```
 
-The bundled `examples/mini_paired/` fixture's `NCIT-DOID.valid.graded.tsv` file is a byte-level worked example — open it up and step through the gains by hand for each query.
+The bundled `examples/mini_paired/` fixture's `evaluation/NCIT-DOID/valid.graded.tsv` is a byte-level worked example — open it up and step through the gains by hand for each query.
+
+## Count metrics and the macro
+
+`biokg_align_kit.scoring.is_count_metric(key)` is the shared registry: a key is a **count**
+iff it is exactly `queries` or ends in `_queries`, `_count`, `_scored`, `_expected` or
+`_warnings`; every other key is a **rate**. `macro_average_tasks` averages rates over the tasks
+with at least one scored query and sums counts over every requested task, emitting
+`<key>_sum`, `<key>_mean` and the bare key (= the sum), plus `tasks` and `tasks_scored`.
+
+Lenient local scoring adds the counts `queries_expected`, `queries_scored` and
+`submission_warnings` to each task (see [submission_scoring.md](submission_scoring.md)).
+
+## Organiser-only diagnostics
+
+Organiser reports additionally carry `entity_only_{mrr,hits_at_1,hits_at_5,hits_at_10}`,
+`relation_{accuracy,macro_f1}_on_gold_entity_ungated` (argmax relation on the preferred entity
+for every query, whichever entity ranks first) and
+`hierarchy_aware_typed_ndcg_at_10__{equivalence_only,subsumption_only}` (split by the private
+query mode). They are never part of the leaderboard.
+
+## Baseline tables: repeat runs
+
+The organiser baseline tables (`baseline_results.json`, `baseline_results_macro.json`,
+`baseline_results.md`) report **run 0** as the canonical number of every system and, for the
+stochastic systems (`random`, the four KGE models, the trained text ranker, the cross-encoder
+and the two support-augmented rankers), a `repeats` block with every run's flat metrics, their
+mean and their **sample** standard deviation (`ddof = 1`) over runs with seeds
+`benchmarks.seed + i`. The macro of each run is computed first and mean/std are taken across
+the per-run macros. Hyperparameters are selected once on run 0 and frozen, so the spread
+measures initialisation, batching and epoch-selection randomness only. Deterministic systems
+(`exact_lexical`, `hybrid_lexical`, `word_embedding_based`, `logmap`) run once.
 
 ## Local-vs-leaderboard reminder
 
-The kit's `score` CLI auto-discovers `*.preferred.tsv` and `*.graded.tsv` next to the answers file and emits the headline families when those siblings are present. If they're missing, only the `diagnostic_*` family is reported, with a note on stderr explaining which optional files were not found.
-
-If your local `preferred_typed_mrr` and `hierarchy_aware_typed_ndcg_at_10` are present, they are computed by exactly the same code paths the platform runs. Any divergence from the leaderboard score is therefore attributable to the gap between the public train/valid split (which the kit scores against) and the private test split (which the platform scores against) — not to the metric implementation.
+The kit's `score` reads `evaluation/<task>/<split>.answers.tsv` and its siblings
+`<split>.preferred.tsv` and `<split>.graded.tsv` (all three are required and validated) and
+`evaluation/query_metadata.tsv`. Your local `preferred_typed_mrr` and
+`hierarchy_aware_typed_ndcg_at_10` are computed by exactly the same code the platform runs; a
+difference from the leaderboard comes from the split (train/valid locally, private test on the
+platform) or from lenient-mode fallbacks (local only, always announced) — never from the
+metric implementation.

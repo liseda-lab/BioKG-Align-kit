@@ -86,9 +86,9 @@
   <h1 class="mt-3 text-3xl md:text-4xl">From download to leaderboard</h1>
   <p class="mt-4 text-lg text-muted">
     Get the public data and kit, build a system, validate locally, then submit.
-    Submissions are a four-column TSV —
-    <code>SrcEntity</code>, <code>TgtEntity</code>, <code>Relation</code>, <code>Score</code> —
-    block-structured with no <code>QueryID</code>.
+    Submissions are a single five-column TSV —
+    <code>QueryID</code>, <code>SrcEntity</code>, <code>TgtEntity</code>, <code>Relation</code>, <code>Score</code> —
+    joined to the queries by their identifier.
   </p>
 
   <h2 class="mt-12 text-2xl">How to take part</h2>
@@ -618,17 +618,22 @@
 
   <h2 class="mt-12 text-2xl">Submission format</h2>
   <p class="mt-3 text-muted">
-    A single four-column TSV — <code>SrcEntity</code>, <code>TgtEntity</code>, <code>Relation</code>, <code>Score</code> —
-    with one positional block of 150 rows per query
-    (50 candidates × 3 relations) and no <code>QueryID</code>.
+    A single five-column TSV — <code>QueryID</code>, <code>SrcEntity</code>, <code>TgtEntity</code>, <code>Relation</code>, <code>Score</code> —
+    covering every task, with exactly one row per (candidate, relation) of every query
+    (50 candidates × 3 relations = 150 rows per query), in any order. <code>QueryID</code> is the opaque
+    identifier (<code>&lt;task&gt;-&lt;8 hex&gt;</code>) from the candidate file; a source can own two queries
+    with different pools, so never key by source.
     The <code>Relation</code> column takes one of
     <code>equivalent</code>, <code>source_subsumed_by_target</code>, <code>source_subsumes_target</code>.
+    The platform's rules are strict: unknown or missing queries, missing or duplicate pairs, off-pool
+    targets, bad relations and non-finite scores are rejected — run the kit's <code>verify</code> first.
   </p>
   <p class="mt-3 text-sm text-muted">
     The kit owns the exact contract — see
     <a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/submission_format.md">submission format</a> and
-    <a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/block_scoring.md">block scoring</a>.
-    Final scoring runs server-side; the kit's local score is a diagnostic aid only — see the
+    <a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/submission_scoring.md">submission scoring</a>.
+    Final scoring runs server-side with the same scorer; the kit's local score is lenient by default
+    (warnings instead of rejections) and is a diagnostic aid only — see the
     <a href="/task/">task and evaluation</a> page.
   </p>
 
@@ -693,7 +698,7 @@
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
         <li>Licence</li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.2</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.4.0</a></li>
       </ul>
     </div>
   </div>

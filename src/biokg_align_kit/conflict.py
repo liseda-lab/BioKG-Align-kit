@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-# This module intentionally shares the organizer implementation. Keeping the
-# evaluator self-contained makes public-kit scores reproducible without the
-# organizer package.
+# Single implementation: the organiser pipeline imports this module for its
+# baseline conflict diagnostics, so kit and organiser numbers cannot drift.
 
 import csv
 import json
@@ -11,7 +10,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 
 OWL_EQUIVALENT_CLASS = "http://www.w3.org/2002/07/owl#equivalentClass"
@@ -23,7 +22,7 @@ RELATION_ORDER = {
     "source_subsumes_target": 2,
 }
 Witness = tuple[str, str, str, str, str]
-Mapping = tuple[str, str, str]
+MappingTriple = tuple[str, str, str]
 
 _BASELINE_CACHE: dict[tuple[str, tuple[tuple[str, int, int], ...], str], set[Witness]] = {}
 
@@ -37,38 +36,24 @@ def _rank_key(row: dict[str, str]) -> tuple[float, str, int]:
 
 
 def select_top_mappings(
-    predictions: list[dict[str, str]],
-    query_keys: Iterable[tuple[str, str]] | None = None,
-    per_query_candidate_sets: dict[tuple[str, str], set[str]] | None = None,
-) -> list[Mapping]:
-    """Select one deterministic top-ranked mapping per query."""
-    explicit_query_ids = any("QueryID" in row for row in predictions)
-    by_query: dict[tuple[str, str], list[dict[str, str]]] = {}
+    predictions: Mapping[str, list[dict]] | Iterable[dict],
+    query_ids: Iterable[str] | None = None,
+) -> list[MappingTriple]:
+    """Select one deterministic top-ranked mapping per query.
 
-    if explicit_query_ids:
-        for row in predictions:
-            key = (row["SrcEntity"], row.get("QueryID", "Q0"))
-            by_query.setdefault(key, []).append(row)
-        keys = sorted(set(query_keys) if query_keys is not None else by_query)
-    elif query_keys is not None:
-        keys = sorted(set(query_keys))
-        by_source: dict[str, list[dict[str, str]]] = {}
-        for row in predictions:
-            by_source.setdefault(row["SrcEntity"], []).append(row)
-        for key in keys:
-            source, _query_id = key
-            candidates = per_query_candidate_sets.get(key) if per_query_candidate_sets else None
-            rows = by_source.get(source, [])
-            by_query[key] = [
-                row for row in rows
-                if candidates is None or row["TgtEntity"] in candidates
-            ]
+    ``predictions`` is either ``QueryID -> rows`` (a loaded submission's
+    ``predictions_by_query``) or a flat iterable of rows carrying ``QueryID``.
+    ``query_ids`` restricts the selection (default: every query present).
+    """
+    if isinstance(predictions, Mapping):
+        by_query: dict[str, list[dict]] = {key: list(rows) for key, rows in predictions.items()}
     else:
+        by_query = {}
         for row in predictions:
-            by_query.setdefault((row["SrcEntity"], "Q0"), []).append(row)
-        keys = sorted(by_query)
+            by_query.setdefault(row["QueryID"], []).append(row)
+    keys = sorted(set(query_ids) if query_ids is not None else by_query)
 
-    selected: set[Mapping] = set()
+    selected: set[MappingTriple] = set()
     for key in keys:
         ranked = sorted(by_query.get(key, []), key=_rank_key)
         if ranked:
@@ -77,7 +62,7 @@ def select_top_mappings(
     return sorted(selected)
 
 
-def mapping_to_rdf(mapping: Mapping) -> tuple[str, str, str]:
+def mapping_to_rdf(mapping: MappingTriple) -> tuple[str, str, str]:
     source, target, relation = mapping
     if relation == "equivalent":
         return source, OWL_EQUIVALENT_CLASS, target
@@ -89,17 +74,19 @@ def mapping_to_rdf(mapping: Mapping) -> tuple[str, str, str]:
 
 
 def score_datalog_conflicts(
-    predictions: list[dict[str, str]],
+    predictions: Mapping[str, list[dict]] | Iterable[dict],
     graph_dir: str | Path,
     *,
-    query_keys: Iterable[tuple[str, str]] | None = None,
-    per_query_candidate_sets: dict[tuple[str, str], set[str]] | None = None,
+    query_ids: Iterable[str] | None = None,
     souffle_bin: str = "souffle",
     report_path: str | Path | None = None,
 ) -> dict[str, float]:
+    """OWL 2 RL conflict diagnostic of the top-1 alignment (one mapping per
+    query, :func:`select_top_mappings`) against the released program.
+    Optional tooling, never a leaderboard metric."""
     graph_dir = Path(graph_dir)
     _validate_graph(graph_dir)
-    mappings = select_top_mappings(predictions, query_keys, per_query_candidate_sets)
+    mappings = select_top_mappings(predictions, query_ids)
     facts, resolved_mappings, terms = _mapping_facts(graph_dir, mappings)
 
     cache_key = _baseline_cache_key(graph_dir, souffle_bin)
@@ -149,7 +136,7 @@ def _validate_graph(graph_dir: Path) -> None:
 
 def _mapping_facts(
     graph_dir: Path,
-    mappings: list[Mapping],
+    mappings: list[MappingTriple],
 ) -> tuple[list[str], list[dict[str, str]], dict[str, dict[str, str]]]:
     with (graph_dir / "properties.csv").open("r", encoding="utf-8", newline="") as handle:
         node_iris = {

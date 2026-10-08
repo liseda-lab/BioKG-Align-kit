@@ -5,7 +5,7 @@ Two simple baselines ship with the kit:
 
 * **``random``** — emits per-(source, target, relation) scores drawn
   from a seeded `random.Random` PRNG. Provides a calibration anchor
-  for diagnostic metrics; under a 50-candidate x 3-relation block the
+  for diagnostic metrics; with 50 candidates x 3 relations per query the
   expected MRR is ``H(150)/150 ≈ 0.038``.
 
 * **``hybrid_lexical``** — emits a normalised lexical-overlap score
@@ -19,7 +19,7 @@ The baseline catalogue is deliberately small. Participants are
 expected to bring their own ranking model; these exist only to
 exercise the kit end-to-end and to populate the canonical fixture.
 
-Naming history (v0.2.0): the previous kit released this baseline
+Naming history: kits before 0.2 released this baseline
 under the name ``lexical``. The canonical name organiser-side is
 ``hybrid_lexical`` (matches paper §1.6 Table 2), and the kit now
 aligns. Calling ``score(..., baseline="lexical", ...)`` raises a
@@ -32,6 +32,7 @@ import random
 from pathlib import Path
 
 from .io import parse_list, read_tsv, write_tsv
+from .scoring import SUBMISSION_COLUMNS
 from .text import lexical_score
 
 # Canonical relation list emitted by every prediction row. Mirrors
@@ -71,12 +72,10 @@ def predict(
     """
     Run a reference baseline end-to-end against a data directory.
 
-    Reads ``tasks/<task>/<split>.cands.tsv`` from ``data_dir``, emits
-    one prediction row per ``(SrcEntity, TgtEntity, Relation)`` tuple
-    in block order, and writes the result as a 4-column TSV at
-    ``output``. Each block of ``|C_q| x |RELATIONS|`` rows corresponds
-    positionally to a row of the cands TSV — matching the v0.2.0
-    block-scoring format participants submit to the platform.
+    Reads ``tasks/<task>/<split>.cands.tsv`` from ``data_dir`` and writes
+    one prediction row per ``(QueryID, TgtEntity, Relation)`` — every typed
+    pair of every query — as a five-column submission TSV
+    (``QueryID SrcEntity TgtEntity Relation Score``) at ``output``.
 
     Parameters
     ----------
@@ -106,16 +105,18 @@ def predict(
         )
     rows = []
     for row in candidates:
+        query_id = row["QueryID"]
         source_id = row["SrcEntity"]
         for target_id in parse_list(row["TgtCandidates"]):
             for relation in RELATIONS:
                 rows.append({
+                    "QueryID": query_id,
                     "SrcEntity": source_id,
                     "TgtEntity": target_id,
                     "Relation": relation,
                     "Score": f"{score(source_id, target_id, relation, properties, baseline, seed):.8f}",
                 })
-    write_tsv(output, rows, ["SrcEntity", "TgtEntity", "Relation", "Score"])
+    write_tsv(output, rows, list(SUBMISSION_COLUMNS))
     return Path(output)
 
 
@@ -135,7 +136,7 @@ def score(
     ------
     ValueError
         If ``baseline`` is not in :data:`SUPPORTED_BASELINES`. The
-        legacy alias ``"lexical"`` (used in pre-v0.2.0 kits) raises a
+        legacy alias ``"lexical"`` (used in kits before 0.2) raises a
         ValueError with a one-line migration pointer.
     """
     if baseline == "random":

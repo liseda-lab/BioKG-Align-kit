@@ -1,4 +1,4 @@
-# Data Card — BioKG-Align v0.3.2
+# Data Card — BioKG-Align v0.4.0
 
 This data card describes the public artifacts released for the BioKG-Align competition (AAAI 2027). It includes concrete file-level documentation aimed at participants integrating the data into their pipelines. For the other kit-side reference documents see the rest of this directory.
 
@@ -8,7 +8,14 @@ BioKG-Align is a typed link-prediction benchmark over a unified biomedical knowl
 
 The entity set is **classes only**: SNOMED concepts that function as properties in SNOMED's own OWL (137 concept-model object and concrete-domain data properties, which RF2 lists as ordinary concepts) are excluded from the entities, queries, and graph nodes. They keep their role as relation types in `triples.csv` and their property axioms in the Datalog layer.
 
-The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. The release contains 29,474 test queries across 15,160 source entities. Each query has 50 candidate target entities and three relation types, producing a 150-row submission block per query.
+The main track defines three task pairs: NCIT-DOID, SNOMED-FMA, and SNOMED-NCIT. Each query has an
+opaque identifier, 50 candidate target entities and three relation types, so a submission carries 150
+rows per query. Query counts (v0.4.0-rc1), train / valid / test: NCIT-DOID 7,345 / 1,200 / 3,688;
+SNOMED-FMA 12,369 / 2,063 / 5,940; SNOMED-NCIT 42,207 / 7,011 / 20,633 — in total 61,921 / 10,274 /
+30,261. About half of each task's queries are equivalence-mode and half subsumption-mode.
+
+v0.4.0 numbers are **not comparable** with v0.3.x numbers: subsumption-mode queries are now sampled
+per task (adding SNOMED-FMA queries), and query identity changed (opaque IDs, ID-joined scoring).
 
 ## Released artifacts
 
@@ -16,46 +23,40 @@ Top-level release layout:
 
 ```
 public/
-├── graph/
-│   ├── triples.csv
-│   ├── properties.csv
-│   ├── anchors_train.tsv
-│   ├── facts.dl                  # .input driver
-│   ├── <relation>.facts          # one TSV per fact relation (see datalog_schema.json)
-│   ├── owl2rl_core.dl
-│   ├── rules.dl
-│   ├── conflict_rules.dl
-│   ├── legacy_projection_rules.dl
-│   ├── legacy_projection_facts.dl
-│   ├── datalog_terms.tsv
-│   ├── datalog_schema.json
-│   ├── node_schema.json
-│   └── relation_schema.json
+├── graph/                         # unchanged from v0.3.2 (see below)
+│   ├── triples.csv, properties.csv, anchors_train.tsv
+│   ├── facts.dl (.input driver), <relation>.facts, owl2rl_core.dl, rules.dl, conflict_rules.dl
+│   ├── legacy_projection_rules.dl, legacy_projection_facts.dl
+│   └── datalog_terms.tsv, datalog_schema.json, node_schema.json, relation_schema.json
 ├── alignments/
 │   ├── train.tsv
 │   └── valid.tsv
 ├── tasks/
 │   ├── NCIT-DOID/
-│   │   ├── train.cands.tsv
-│   │   ├── valid.cands.tsv
-│   │   ├── test.cands.tsv
-│   │   ├── train.preferred.tsv
-│   │   ├── valid.preferred.tsv
-│   │   ├── train.graded.tsv
-│   │   ├── valid.graded.tsv
-│   │   ├── train.composition.json
-│   │   └── valid.composition.json
+│   │   ├── train.cands.tsv, valid.cands.tsv, test.cands.tsv   # QueryID, SrcEntity, TgtCandidates
+│   │   └── train.composition.json, valid.composition.json     # tier counts per QueryID
 │   ├── SNOMED-FMA/  (same layout)
 │   └── SNOMED-NCIT/ (same layout)
-├── baseline_predictions/
-├── evaluation/                    # sample_submission.tsv, submission_schema.json, scorer
+├── evaluation/
+│   ├── NCIT-DOID/
+│   │   ├── train.answers.tsv, train.preferred.tsv, train.graded.tsv
+│   │   └── valid.answers.tsv, valid.preferred.tsv, valid.graded.tsv
+│   ├── SNOMED-FMA/  (same layout)
+│   ├── SNOMED-NCIT/ (same layout)
+│   ├── query_metadata.tsv         # train and valid queries only
+│   ├── sample_submission.tsv, submission_schema.json, scorer
+├── baseline_predictions/          # <task>.<baseline>.tsv (run 0) and <task>.<baseline>.run<i>.tsv
 ├── baseline_results.json / baseline_results_macro.json / baseline_results.md
-├── README.md / data_card.md       # in-package pointers to this documentation
+├── reports/                       # incl. reference_construction.json, query_mode_predictability.json
+├── README.md / data_card.md
 ├── release_manifest.json
 └── license_manifest.json
 ```
 
-The corresponding test-split files (`<task>.test.answers.tsv`, `<task>.test.preferred.tsv`, `<task>.test.graded.tsv`) are organiser-only and not distributed; the scorer runs server-side against them after a submission is uploaded.
+The test evaluation files (`evaluation/<task>/test.{answers,preferred,graded}.tsv` and the test rows of
+`query_metadata.tsv`, i.e. the per-query test modes) are organiser-only; the platform scores
+submissions against them. Aggregate test counts per task and mode are public in
+`reports/reference_construction.json`.
 
 ## File schemas
 
@@ -127,67 +128,87 @@ Cross-ontology mappings with relation types, used as training and validation lab
 | `source_ontology_version` | string | Version of the source ontology.                                              |
 | `target_ontology_version` | string | Version of the target ontology.                                              |
 
-### `tasks/<task>/{train,valid}.cands.tsv`
+### `tasks/<task>/{train,valid,test}.cands.tsv`
 
-Per-query candidate sets with gold labels (public on train/valid).
+The task inputs, identical in form for every split. Rows are in a shuffled order (per task and split);
+candidate lists are sorted.
 
-| Column         | Type   | Description                                                  |
-|----------------|--------|--------------------------------------------------------------|
-| `SrcEntity`    | string | Source query entity.                                         |
-| `QueryID`      | string | Per-source query identifier (`Q0` is pref. $\equiv$, `Q1` is pref. $\in \{\ \sqsubseteq,\ \sqsupseteq\ \}$). |
-| `TgtEntities`  | list   | Primary gold target as a bracketed list — a single element under the N=1 gold model. |
-| `Relations`    | list   | Gold relation parallel to `TgtEntities` (single element).    |
-| `TgtCandidates`| list   | Fixed set of 50 candidate target entities (bracketed list).  |
+| Column          | Type   | Description |
+|-----------------|--------|-------------|
+| `QueryID`       | string | Opaque query identifier `<task>-<8 hex>`, unique across the release; carries no information about the query. |
+| `SrcEntity`     | string | Source query entity. A source can own two queries (different `QueryID`s, different pools). |
+| `TgtCandidates` | list   | The 50 candidate target entities (bracketed list, sorted). |
 
-### `tasks/<task>/test.cands.tsv`
+### `evaluation/<task>/{train,valid}.answers.tsv`
 
-| Column         | Type   | Description                                |
-|----------------|--------|--------------------------------------------|
-| `SrcEntity`    | string | Source query entity.                       |
-| `TgtCandidates`| list   | Fixed set of 50 candidate target entities. |
+| Column          | Type   | Description |
+|-----------------|--------|-------------|
+| `QueryID`       | string | Query identifier (joins to the cands file). |
+| `SrcEntity`     | string | Source query entity. |
+| `TgtEntities`   | list   | The query's gold target (one element: the preferred target). |
+| `Relations`     | list   | Its relation (parallel to `TgtEntities`). |
+| `TgtCandidates` | list   | The query's pool (identical to the cands file). |
 
-No `QueryID` column; no gold leak. Block scoring recovers `QueryID` positionally.
+### `evaluation/<task>/{train,valid}.preferred.tsv`
 
-### `tasks/<task>/{train,valid}.preferred.tsv`
+| Column      | Type   | Description |
+|-------------|--------|-------------|
+| `QueryID`   | string | Query identifier. |
+| `SrcEntity` | string | Source query entity. |
+| `TgtEntity` | string | Preferred target entity (exactly one per query). |
+| `Relation`  | string | Preferred relation (precedence `equivalent` ≻ `source_subsumed_by_target` ≻ `source_subsumes_target`). |
 
-Per-query preferred gold pair (two-file evaluation design, public on train/valid).
+### `evaluation/<task>/{train,valid}.graded.tsv`
 
-| Column      | Type   | Description                              |
-|-------------|--------|------------------------------------------|
-| `SrcEntity` | string | Source query entity.                     |
-| `QueryID`   | string | Per-source query identifier.             |
-| `TgtEntity` | string | Preferred target entity.                 |
-| `Relation`  | string | Preferred relation.                      |
+Graded relevance for the secondary metric (Hierarchy-Aware Typed nDCG@10); see
+[graded_relevance.md](graded_relevance.md).
 
-### `tasks/<task>/{train,valid}.graded.tsv`
+| Column      | Type   | Description |
+|-------------|--------|-------------|
+| `QueryID`   | string | Query identifier. |
+| `SrcEntity` | string | Source query entity. |
+| `TgtEntity` | string | Candidate target (member of the pool). |
+| `Relation`  | string | Relation. |
+| `Gain`      | float  | Gain in (0, 1]; the preferred pair has 1.0. |
 
-Per-query graded relevance file for the secondary metric (Hierarchy-Aware Typed nDCG@10).
+### `evaluation/query_metadata.tsv`
 
-| Column      | Type   | Description                                      |
-|-------------|--------|--------------------------------------------------|
-| `SrcEntity` | string | Source query entity.                             |
-| `QueryID`   | string | Per-source query identifier.                     |
-| `TgtEntity` | string | Candidate target.                                |
-| `Relation`  | string | Relation.                                        |
-| `Gain`      | float  | Graded gain in `[0, 1]`.                          |
+| Column      | Type   | Description |
+|-------------|--------|-------------|
+| `QueryID`   | string | Query identifier. |
+| `Task`      | string | Task pair. |
+| `Split`     | string | `train` or `valid` (test rows are private). |
+| `SrcEntity` | string | Source query entity. |
+| `QueryMode` | string | `equivalence` iff the preferred relation is `equivalent`, else `subsumption`. |
 
 ### `tasks/<task>/{train,valid}.composition.json`
 
-Per-query candidate-pool composition report: how many of each query's 50 candidates were contributed by each construction tier (`gold`, `lexical`, `neighbourhood`, `random`, `rerank`), per query and in aggregate. Diagnostic transparency only — not needed for training or scoring.
+Per-query candidate-pool composition counts, keyed by `QueryID`: how many of the 50 candidates came
+from each construction tier (`gold`, `neighbourhood`, `lexical`, `rerank`, `random`), plus aggregates.
+Diagnostic transparency only — not needed for training or scoring.
+
+### `reports/reference_construction.json`, `reports/query_mode_predictability.json`
+
+Aggregate query counts per task × split × mode and per-task direction counts of the primary
+subsumption references; and a construction-metadata diagnostic showing that row position predicts the
+query mode no better than the majority class (train and valid sections; the organiser copy adds test).
+The same report gives, without a pass/fail verdict, how well the published tier counts predict the
+mode on the validation split: they do carry mode information (v0.4.0-rc1 logistic accuracy 0.74
+NCIT-DOID, 0.75 SNOMED-FMA, 0.68 SNOMED-NCIT, against a majority rate of 0.50).
 
 ## Submission format
 
-The participant submission is a single TSV across all three task pairs:
+One five-column TSV covering every task of the phase, joined to the queries by `QueryID` (row order
+irrelevant):
 
 ```
-SrcEntity   TgtEntity   Relation   Score
+QueryID   SrcEntity   TgtEntity   Relation   Score
 ```
 
-Submission rows are grouped positionally into per-query blocks of size 150 (`candidate_count x |submission.relations|`, 50 $\times$ 3 = 150). Block `k` corresponds to the k-th row of the concatenated `test.cands.tsv` files (canonical task order: NCIT-DOID, SNOMED-FMA, SNOMED-NCIT — see `../submission_schema.json`).
-
-For the canonical build (29,474 test queries), a full submission is `29,474 x 150 = 4,421,100` rows.
-
-The kit's `verify` CLI command validates the submission locally before upload; see kit README for usage.
+Every query carries exactly one row per (candidate, relation) — 150 rows. For the canonical v0.4.0-rc1
+test split (30,261 queries) a full submission has 4,539,150 rows. `verify` applies the platform's
+strict rules; see [submission_format.md](submission_format.md) and
+[submission_scoring.md](submission_scoring.md).
 
 ## Licences
 
@@ -204,7 +225,11 @@ Licence terms for SNOMED CT and FMA complicate direct redistribution of the sour
 
 ## Splits
 
-Splits are by source query within each task pair. The same source entity does not appear in both training and hidden test with different targets. Relation balance across train, valid, and test is preserved where the task size allows; the split report records imbalances explicitly.
+Splits are by source within each task pair: every reference row of a (task, source) is in one split,
+so a source never appears in both training and hidden test of a task. Equivalence-mode and
+subsumption-mode queries of a source share its split. Since v0.4.0 the primary subsumption samples
+are drawn per task with the direction balance computed within each task (see
+`reports/subsumption_only_sampling.json`).
 
 ## Ethics and intended use
 
@@ -219,4 +244,10 @@ Known limitations:
 
 ## Versioning
 
-This data card describes v0.3.2 _(rc1, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 (last built as rc3) froze the one-preferred-gold metric contract; v0.2.1 kept that contract, added the publication-readiness fixes (scoring, leakage, and reproducibility), and moved the Datalog facts to the `.input` layout; v0.3.0 withheld the class-clash axiom families from the released facts wholesale; v0.3.1 refines that to the **minimal** reference-clashing fact set (the declared curation above), keeping the export maximally complete under OWL 2 RL; v0.3.2 restricts the entity set to classes only (SNOMED's 137 OWL property concepts are excluded from entities and queries) — it is the version intended for AAAI 2027 release.
+This data card describes v0.4.0 _(rc1, at this time)_. v0.1.0 and v0.1.1 were internal development builds; v0.1.2 introduced subsumption-only sampling; v0.1.3 moved to the pool model and the 4-column block-scoring submission format; v0.2.0 (last built as rc3) froze the one-preferred-gold metric contract; v0.2.1 kept that contract, added the publication-readiness fixes (scoring, leakage, and reproducibility), and moved the Datalog facts to the `.input` layout; v0.3.0 withheld the class-clash axiom families from the released facts wholesale; v0.3.1 refines that to the **minimal** reference-clashing fact set (the declared curation above), keeping the export maximally complete under OWL 2 RL; v0.3.2 restricted the entity set to classes only (SNOMED's 137 OWL property concepts are excluded from
+entities and queries). **v0.4.0** (this card; built as rc1) samples the primary subsumption queries
+per task (sources equivalent in two tasks get a subsumption-mode query in both; SNOMED-FMA gains
+2,752 queries), gives every query an opaque identifier with rows shuffled per task and split, moves
+the train/valid gold to `evaluation/` (cands files carry only `QueryID, SrcEntity, TgtCandidates`),
+and replaces the positional four-column submission with the five-column ID-joined one. Graph and
+Datalog files are unchanged from v0.3.2. v0.4.0 is the version intended for the AAAI 2027 release.

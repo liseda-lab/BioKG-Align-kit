@@ -2,22 +2,17 @@
 Hierarchy index, graded relevance, and Hierarchy-Aware Typed nDCG@10 for
 the BioKG-Align kit.
 
-This module ports a stripped-down version of the organiser-side
-HierarchyIndex, compute_graded_relevance, and
-hierarchy_aware_ndcg implementations. The behaviour matches the
-organiser-side computation; the kit's port exists purely so participants
-can compute the Hierarchy-Aware Typed nDCG@10 metric (paper §1.5)
-locally without depending on the private organiser package.
+The kit is the single implementation of the graded-relevance rule: the
+organiser pipeline builds the released ``graded.tsv`` files with
+:func:`compute_graded_relevance`, so participants recompute exactly what
+the release ships.
 
-Keying note
------------
-The on-disk graded-relevance TSV carries a QueryID column when
-produced by the organiser pipeline. The loader and writer here both
-round-trip that column. The same SrcEntity contributes both a Q0
-(equivalence) and a Q1 (subsumption) query with distinct gain tables;
-the per-(SrcEntity, QueryID) keying is necessary for correctness.
-Files without a QueryID column fall back to "Q0" for backwards
-compatibility with legacy fixtures.
+Keying
+------
+Graded-relevance files are keyed by the opaque ``QueryID``
+(``<task>-<8 hex>``); the same ``SrcEntity`` can own two queries (one per
+mode) with different gain tables, so the source alone is never a key.
+Schema: ``QueryID  SrcEntity  TgtEntity  Relation  Gain``.
 """
 
 from __future__ import annotations
@@ -166,12 +161,16 @@ def load_hierarchy_from_triples(
     return HierarchyIndex(edges)
 
 
+DEFAULT_EQUIVALENCE_PARTIAL_GAIN = 0.6
+
+
 def compute_graded_relevance(
     preferred_target: str,
     preferred_relation: str,
     candidate_set: set[str],
     hierarchy: HierarchyIndex,
     max_distance: int = 3,
+    equivalence_partial_gain: float = DEFAULT_EQUIVALENCE_PARTIAL_GAIN,
 ) -> dict[tuple[str, str], float]:
     """
     Compute graded relevance gains for the Hierarchy-Aware Typed nDCG@10
@@ -183,19 +182,20 @@ def compute_graded_relevance(
     +--------------------------+--------------+-------------+--------------+
     | Preferred (v*, r*)       | gain(v*,≡)   | gain(v*,⊑)  | gain(v*,⊒)   |
     +==========================+==============+=============+==============+
-    | (v*, equivalent)         | 1.0          | 0.6         | 0.6          |
+    | (v*, equivalent)         | 1.0          | g_eq        | g_eq         |
     +--------------------------+--------------+-------------+--------------+
     | (v*, ssbt)               | 0.0          | 1.0         | 0.0          |
     +--------------------------+--------------+-------------+--------------+
     | (v*, sst)                | 0.0          | 0.0         | 1.0          |
     +--------------------------+--------------+-------------+--------------+
 
-    Where ssbt = source_subsumed_by_target, sst = source_subsumes_target.
+    Where ssbt = source_subsumed_by_target, sst = source_subsumes_target,
+    and g_eq = ``equivalence_partial_gain`` (canonical 0.6).
 
     Hierarchical partial credit (depth d ∈ {1, ..., max_distance}):
 
     * Equivalence-preferred: ancestors of v* receive gain
-      0.6 / (d + 1) at the ssbt relation; descendants at the sst
+      g_eq / (d + 1) at the ssbt relation; descendants at the sst
       relation.
     * ssbt-preferred: ancestors at 1.0 / (d + 1) at ssbt.
     * sst-preferred: descendants at 1.0 / (d + 1) at sst.
@@ -215,19 +215,20 @@ def compute_graded_relevance(
         gains[(preferred_target, preferred_relation)] = 1.0
 
     if preferred_relation == "equivalent":
+        partial = float(equivalence_partial_gain)
         if preferred_target in candidate_set:
-            gains[(preferred_target, "source_subsumed_by_target")] = 0.6
-            gains[(preferred_target, "source_subsumes_target")] = 0.6
+            gains[(preferred_target, "source_subsumed_by_target")] = partial
+            gains[(preferred_target, "source_subsumes_target")] = partial
         for ancestor, dist in hierarchy.ancestors_with_distance(
             preferred_target, max_distance
         ).items():
             if ancestor in candidate_set:
-                gains[(ancestor, "source_subsumed_by_target")] = 0.6 / (dist + 1)
+                gains[(ancestor, "source_subsumed_by_target")] = partial / (dist + 1)
         for descendant, dist in hierarchy.descendants_with_distance(
             preferred_target, max_distance
         ).items():
             if descendant in candidate_set:
-                gains[(descendant, "source_subsumes_target")] = 0.6 / (dist + 1)
+                gains[(descendant, "source_subsumes_target")] = partial / (dist + 1)
 
     elif preferred_relation == "source_subsumed_by_target":
         for ancestor, dist in hierarchy.ancestors_with_distance(
@@ -287,77 +288,37 @@ def hierarchy_aware_ndcg(
     return dcg / idcg
 
 
-def load_graded_relevance(
-    path: str | Path,
-) -> dict[tuple[str, str], dict[tuple[str, str], float]]:
-    """
-    Load a graded-relevance TSV produced organiser-side or by the kit's
-    build-graded-relevance helper.
+GRADED_COLUMNS: tuple[str, ...] = ("QueryID", "SrcEntity", "TgtEntity", "Relation", "Gain")
 
-    File schema (v0.2.0):
 
-        SrcEntity   QueryID   TgtEntity   Relation   Gain
-
-    Only non-zero gains are present in the file; missing
-    (target, relation) pairs are implicitly gain 0.
-
-    v0.2.0 keying note
-    ------------------
-    Files without a QueryID column fall back to "Q0" for every
-    row (legacy v0.1.2 schema). Under the pool model where the same
-    SrcEntity contributes Q0 + Q1 queries with distinct gain tables,
-    a missing-QueryID file silently merges the two — only use the
-    legacy fallback for genuine eq-only fixtures.
-
-    Returns
-    -------
-    dict[(SrcEntity, QueryID), dict[(TgtEntity, Relation), gain]]
-        Outer key is the per-query (SrcEntity, QueryID) tuple; inner
-        dict matches the schema of :func:`compute_graded_relevance`.
-        Queries whose graded relevance is empty produce no entry.
-    """
-    out: dict[tuple[str, str], dict[tuple[str, str], float]] = defaultdict(dict)
-    with Path(path).open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        for row in reader:
-            src = row["SrcEntity"]
-            query_id = row.get("QueryID", "Q0")
-            out[(src, query_id)][(row["TgtEntity"], row["Relation"])] = float(
-                row["Gain"]
-            )
-    return dict(out)
+def format_gain(gain: float) -> str:
+    """Serialised gain: six decimals, as every released graded file."""
+    return f"{gain:.6f}"
 
 
 def write_graded_relevance(
     path: str | Path,
-    per_query_gains: dict[tuple[str, str], dict[tuple[str, str], float]],
+    per_query_gains: dict[str, dict[tuple[str, str], float]],
+    sources: dict[str, str],
 ) -> None:
     """
-    Write a graded-relevance TSV with the canonical v0.2.0 schema
-    (SrcEntity TgtEntity Relation Gain plus a QueryID column).
+    Write a graded-relevance TSV (``QueryID SrcEntity TgtEntity Relation
+    Gain``). ``per_query_gains`` is keyed by ``QueryID``; ``sources`` maps
+    each ``QueryID`` to its ``SrcEntity``.
 
-    Only non-zero gains are emitted; queries with no positive gains
-    produce no rows. Rows are sorted by
-    (SrcEntity, QueryID, TgtEntity, Relation) for deterministic
-    output.
+    Only non-zero gains are emitted. Rows are sorted by (QueryID,
+    TgtEntity, relation order) for deterministic output.
     """
     rows: list[tuple[str, str, str, str, float]] = []
-    for (src, query_id), gains in per_query_gains.items():
+    for query_id, gains in per_query_gains.items():
         for (tgt, rel), gain in gains.items():
             if gain == 0.0:
                 continue
-            rows.append((src, query_id, tgt, rel, gain))
-    rows.sort(
-        key=lambda r: (
-            r[0],
-            r[1],
-            r[2],
-            _PREFERRED_RELATION_ORDER.get(r[3], 99),
-        )
-    )
+            rows.append((query_id, sources[query_id], tgt, rel, gain))
+    rows.sort(key=lambda r: (r[0], r[2], _PREFERRED_RELATION_ORDER.get(r[3], 99)))
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with Path(path).open("w", encoding="utf-8", newline="") as handle:
-        handle.write("SrcEntity\tQueryID\tTgtEntity\tRelation\tGain\n")
-        for src, query_id, tgt, rel, gain in rows:
-            handle.write(f"{src}\t{query_id}\t{tgt}\t{rel}\t{gain:.6f}\n")
+        handle.write("\t".join(GRADED_COLUMNS) + "\n")
+        for query_id, src, tgt, rel, gain in rows:
+            handle.write(f"{query_id}\t{src}\t{tgt}\t{rel}\t{format_gain(gain)}\n")

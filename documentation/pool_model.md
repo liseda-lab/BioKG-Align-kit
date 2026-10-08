@@ -1,76 +1,70 @@
 # The pool model
 
-Under the canonical build, each source entity contributes two queries, not one.
-(Sources with several reference mappings and no equivalence contribute one
-single-gold query per mapping — `Q0..Qn` — with the other mappings' targets
-excluded from each query's pool, so every ⟨query, candidate-set⟩ pair contains
-exactly one correct answer.) This document explains what the pool model looks like in the released files and why the kit keys every per-query lookup by $(\mathrm{SrcEntity}, \mathrm{QueryID})$.
+A source entity can contribute more than one query. This document explains how queries are
+formed, what the released files show about them, and why everything is keyed by `QueryID`.
 
-## What the pool model means
+## Queries per source
 
-For each source entity in a task pair, the build emits two queries:
+For each source entity of a task the build emits:
 
-- **Q0** — equivalence query. The gold pair is the equivalence target in the partner ontology, with relation `equivalent`.
-- **Q1** — subsumption query. The gold pair is one of the source entity's ancestors or descendants in the partner ontology, with relation `source_subsumed_by_target` or `source_subsumes_target`.
+- an **equivalence-mode** query when the source has a canonical equivalence target in the
+  partner ontology — its preferred pair is that target with relation `equivalent`;
+- a **subsumption-mode** query when, in addition, the equivalence target has a direct parent
+  or child in the partner ontology that is not one of the source's own equivalence targets — its
+  preferred pair is one sampled direct neighbour with `source_subsumed_by_target` (parent) or
+  `source_subsumes_target` (child). Since v0.4.0 this sampling is done **per task**, with the
+  directions balanced within each task, so a source equivalent in two tasks gets a
+  subsumption-mode query in both;
+- for a source with several reference mappings and no equivalence: one single-gold query per
+  mapping, with the other mappings' targets excluded from each query's pool.
 
-The two queries share the same `SrcEntity` but have distinct `QueryID` values (`Q0` and `Q1`), distinct preferred pairs, and generally distinct candidate sets (the build is allowed to re-sample candidates per query; in the canonical release the two queries from a given source share the same 50-candidate pool, but the contract does not require this).
+Every query has exactly one preferred (target, relation) pair.
 
-Under the canonical build at fraction=1.0:
+## The pools of one source's queries differ
 
-```text
-N_sources (test) = 15,160
-N_queries (test) = 29,474   # 15,160 Q0 (equivalence) + 14,314 Q1 (subsumption-only)
-```
+The two queries of a source are built from **different** 50-candidate pools: the
+subsumption-mode pool excludes the equivalence target, and the equivalence-mode pool excludes
+the sampled subsumption target (it is a known positive of the source). Both pools contain the
+gold target, a structural tier (hierarchical neighbours of the preferred target), and lexical,
+semantic-rerank and random tiers. (Kit documentation before 0.4.0 claimed the two queries
+share one pool; the build never did this.)
 
-The `tasks/<task>/test.cands.tsv` file therefore has 29,474 rows across the three task pairs (the same `SrcEntity` appears on consecutive rows for the sources that contribute both queries; some sources yield only Q0, so the 14,314 Q1 queries are slightly fewer than the 15,160 sources), and the corresponding submission has $29{,}474 \times 150 = 4{,}421{,}100$ rows.
+## What the released files show
 
-## What this looks like on disk
+| File | Train / valid | Test |
+|------|---------------|------|
+| `tasks/<task>/<split>.cands.tsv` | `QueryID, SrcEntity, TgtCandidates` | same three columns |
+| `evaluation/<task>/<split>.answers.tsv`, `.preferred.tsv`, `.graded.tsv` | public | private (organiser package) |
+| `evaluation/query_metadata.tsv` (`QueryID, Task, Split, SrcEntity, QueryMode`) | public rows | private rows |
 
-The public `tasks/<task>/{train,valid}.cands.tsv` files carry a `QueryID` column explicitly, with the single primary gold in `TgtEntities`/`Relations` (one-element lists under the N=1 gold model):
+- `QueryID` is opaque (`<task>-<8 hex>`, a keyed hash): it does not encode the mode, and rows
+  are **shuffled** per task and split, so neither the identifier nor the row position reveals
+  which query of a source is which. The release ships `reports/query_mode_predictability.json`,
+  a construction-metadata diagnostic showing that row position predicts the mode no better than
+  the majority class. The pools' tier composition, which `tasks/<task>/<split>.composition.json`
+  publishes for train and valid, is a different matter: the same report shows it predicts the mode
+  well above the majority rate (v0.4.0-rc1 validation: logistic accuracy 0.68–0.75 against 0.50).
+- Candidate lists are sorted, so their order carries no information either.
+- The query mode is published for train and valid (`evaluation/query_metadata.tsv`) and withheld
+  for test. Aggregate counts per task, split and mode are public
+  (`reports/reference_construction.json`).
+- Because the two queries of a source have different pools, comparing them can reveal
+  information about the gold; this is a known property of the pool model (both pools are needed
+  for the two queries) and is not hidden by opaque identifiers.
 
-```text
-SrcEntity   QueryID  TgtEntities    Relations                       TgtCandidates
-NCIT:C001   Q0       ['DOID:D001']  ['equivalent']                  [...50 candidates...]
-NCIT:C001   Q1       ['DOID:D000']  ['source_subsumed_by_target']   [...50 candidates...]
-NCIT:C002   Q0       ['DOID:D002']  ['equivalent']                  [...50 candidates...]
-NCIT:C002   Q1       ['DOID:D000']  ['source_subsumed_by_target']   [...50 candidates...]
-```
+Canonical v0.4.0-rc1 counts (test, equivalence-mode + subsumption-mode): NCIT-DOID 1,851 + 1,837,
+SNOMED-FMA 2,972 + 2,968, SNOMED-NCIT 10,337 + 10,296 (30,261 queries).
 
-The `tasks/<task>/test.cands.tsv` file is two-column (no `QueryID`, no gold) — the participant has no information about which queries are Q0 vs Q1 for the test split. Candidate lists are in canonical (sorted) order: the ordering carries no information about the gold. The same source appears twice on adjacent rows; the scorer recovers the `QueryID` positionally from the private organiser-side answers file.
+## Keying contract
 
-The `tasks/<task>/{train,valid}.preferred.tsv` file likewise carries `QueryID`:
+Every per-query structure in the kit is keyed by `QueryID`:
 
-```text
-SrcEntity   QueryID  TgtEntity   Relation
-NCIT:C001   Q0       DOID:D001   equivalent
-NCIT:C001   Q1       DOID:D000   source_subsumed_by_target
-NCIT:C002   Q0       DOID:D002   equivalent
-NCIT:C002   Q1       DOID:D000   source_subsumed_by_target
-```
+- `scoring.load_query_index(paths)` → `{QueryID: Query(query_id, task, source, candidates)}`;
+- `scoring.load_answers(path)` → `{QueryID: {(TgtEntity, Relation), ...}}`;
+- `scoring.load_preferred_pairs(path)` → `{QueryID: (TgtEntity, Relation)}`;
+- `scoring.load_graded_relevance(path)` → `{QueryID: {(TgtEntity, Relation): gain}}`;
+- `scoring.load_submission(path, index)` joins submission rows by `QueryID`.
 
-Same for the graded relevance files.
-
-## Per-`(SrcEntity, QueryID)` keying contract
-
-Every per-query lookup in the kit is keyed by the $(\mathrm{SrcEntity}, \mathrm{QueryID})$ tuple. Concretely:
-
-- `scoring.load_answers(path)` returns `dict[(SrcEntity, QueryID), set[(TgtEntity, Relation)]]`.
-- `scoring.load_preferred_pairs(path)` returns `dict[(SrcEntity, QueryID), (TgtEntity, Relation)]`.
-- `hierarchy.load_graded_relevance(path)` returns `dict[(SrcEntity, QueryID), dict[(TgtEntity, Relation), gain]]`.
-- `scoring.score_prediction_rows(...)` partitions predictions by $(\mathrm{SrcEntity}, \mathrm{QueryID})$ before scoring.
-
-A kit that keyed by `SrcEntity` alone — as pre-v0.1.3 versions did — silently collapsed the Q0 and Q1 rows for a shared source. Under that bug:
-
-- `load_preferred_pairs` keeps only one of the two preferred pairs per source (later row wins).
-- `load_answers` merges Q0 + Q1 gold sets into one set per source, which both double-counts (set union) and loses the per-query cardinality every metric needs.
-- `score_files` reports $N/2$ queries instead of $N$, and every metric is computed against the wrong query partitioning.
-
-The paired-query regression tests in `tests/test_kit.py` pin all three load functions and the end-to-end score against the bundled `examples/mini_paired/` fixture, which has $2$ sources $\times$ $2$ queries exactly to exercise this contract.
-
-## Predictions don't carry `QueryID`
-
-The submission TSV has four columns; `QueryID` is **not** one of them. Under the pool model, the same `SrcEntity` appears in two adjacent submission blocks. The scorer assigns blocks to queries by position against the `test.cands.tsv` row order, not by matching `SrcEntity` to a query identifier.
-
-The practical consequence: in your submission code, walk the public `test.cands.tsv` row by row and emit one block per row in lockstep with the cands file. Don't try to be clever and dedupe by `SrcEntity` — that silently corrupts the submission.
-
-The kit's `verify` validator enforces positional alignment row-by-row and will reject a submission whose block-$k$ rows have a `SrcEntity` disagreeing with the cands file's row-$k$.
+Never key by `SrcEntity`: two queries of the same source would merge. The paired-query tests in
+`tests/test_kit_full.py` pin this on `examples/mini_paired/` (2 sources × 2 queries, different
+pools).

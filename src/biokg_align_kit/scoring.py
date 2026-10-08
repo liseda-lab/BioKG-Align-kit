@@ -1,437 +1,525 @@
 """
-Scoring helpers for the BioKG-Align kit.
+Scoring for BioKG-Align (kit 0.4.0).
 
-This module ships three metric families. The intent and naming match
-the organiser-side biokg_align.scoring module so that local kit
-scores under the headline keys are directly comparable to the
-leaderboard:
+The kit is the single scorer implementation: the platform scoring program and the
+organiser's private test scoring call the functions below, so a score computed
+locally with the kit is computed by the same code as the leaderboard.
 
-1. **Preferred-pair metrics** (paper §1.5 primary).
-   For each query, exactly one preferred (target, relation) gold
-   pair is fixed organiser-side. Metrics: preferred_typed_mrr,
-   preferred_typed_hits_at_{1,5,10}. The diagnostic
-   preferred_entity_relation_accuracy and
-   preferred_entity_relation_macro_f1 are also emitted from the
-   preferred-pair family — they isolate the relation-typing
-   sub-problem conditional on entity correctness.
+Query identity
+--------------
+Every query has an opaque identifier ``<task>-<8 lowercase hex>`` (for example
+``SNOMED-FMA-3fa94c0e``). Candidate files carry ``QueryID, SrcEntity,
+TgtCandidates``; evaluation files (answers, preferred, graded, query metadata) are
+keyed by the same ``QueryID``. A source can own two queries (one equivalence-mode,
+one subsumption-mode) with different pools, so ``SrcEntity`` alone is never a key.
 
-2. **Hierarchy-Aware Typed nDCG@10** (paper §1.5 secondary).
-   Continuous graded gains over hierarchically close
-   (target, relation) pairs. Output key:
-   hierarchy_aware_typed_ndcg_at_10.
+Submissions
+-----------
+One five-column TSV for all tasks: ``QueryID  SrcEntity  TgtEntity  Relation
+Score``, joined to the queries by ``QueryID``; row order is irrelevant. Every query
+must carry exactly ``|candidates| x |relations|`` rows. :func:`load_submission`
+enforces eight rules:
 
-3. **Diagnostic set-based metrics** (kit-only).
-   Each query contributes its full gold set; the relevance signal is
-   binary set membership against any gold pair. Output keys are
-   prefixed diagnostic_*. Useful for fast iteration but **not** the
-   leaderboard score — participants should not treat these as the
-   headline.
+1. the header is exactly the five columns (and every row has five fields);
+2. every ``QueryID`` exists in the query index, and every indexed query appears;
+3. ``SrcEntity`` equals the query's source;
+4. ``TgtEntity`` is in the query's candidate set;
+5. ``Relation`` is one of the three relations;
+6. ``Score`` parses to a finite float;
+7. no duplicate ``(QueryID, TgtEntity, Relation)``;
+8. every query has exactly ``|candidates| x |relations|`` rows.
 
-Per-query keying
-----------------
-All loaders and scorers in this module key by the (SrcEntity,
-QueryID) tuple. Under the pool model the same SrcEntity
-contributes Q0 (equivalence) and Q1 (subsumption) queries with
-distinct gold pairs and candidate pools; collapsing by SrcEntity
-alone would silently merge them.
-Files without a QueryID column fall back to "Q0" for every row,
-preserving compatibility with legacy fixtures.
+**Strict mode** (``strict=True``; ``verify``, the platform scorer and the
+organiser's private test scoring) makes every rule fatal. **Lenient mode**
+(``strict=False``; only the kit's ``score`` command for train/valid) keeps rule 1
+fatal and turns every other rule into a warning with a defined fallback: invalid
+rows are dropped, duplicate pairs keep their maximum score, missing pairs of a
+present query are filled with ``-inf`` (last rank), and queries without a valid row
+are skipped. Lenient numbers are not leaderboard-comparable.
 
-Predictions arrive in the 4-column block format (no QueryID
-column); :func:`load_block_format_predictions` recovers the per-query
-partitioning positionally from the answers file's row order, matching
-the platform-side contract.
+Metric families (key names shared with the organiser)
+-----------------------------------------------------
+* ``preferred_typed_mrr`` (primary), ``preferred_typed_hits_at_{1,5,10}``,
+  ``median_preferred_typed_rank``, ``preferred_typed_queries``;
+* ``preferred_entity_relation_{accuracy,macro_f1,queries}`` — relation typing on
+  the queries whose top-ranked entity is the preferred target (gated);
+* ``hierarchy_aware_typed_ndcg_at_10`` (secondary) and its ``_queries`` count;
+* ``diagnostic_*`` set-based metrics (not the leaderboard score); ``queries``.
+
+Ranking within a query is by ``(-Score, TgtEntity, relation order)`` with the
+relation order ``equivalent < source_subsumed_by_target < source_subsumes_target``.
 """
 
 from __future__ import annotations
 
+import csv
 import math
+import re
+import statistics
 import warnings
-from collections import defaultdict
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 from .io import parse_list, read_tsv, write_json
 
 
-# Explicit relation ordering for ranking tie-breaks per paper §2.1.
-#
-# When two predictions share a score AND a target entity, the relation
-# that appears earliest in this map is ranked first. The order is:
-#   equivalent ≺ source_subsumed_by_target ≺ source_subsumes_target.
+# Explicit relation ordering for ranking tie-breaks.
 RELATION_TIEBREAK_ORDER: dict[str, int] = {
     "equivalent": 0,
     "source_subsumed_by_target": 1,
     "source_subsumes_target": 2,
 }
 
-# Default canonical relation set; mirrors paper §1.4. The organiser
-# configures this via config["submission"]["relations"]; the kit
-# hard-codes it because the public build always uses the canonical
-# triple. The validator accepts an override for hypothetical builds.
 DEFAULT_RELATIONS: tuple[str, ...] = (
     "equivalent",
     "source_subsumed_by_target",
     "source_subsumes_target",
 )
 
-# Unknown relations sort after all known ones; they will already have
-# been flagged by the submission validator before reaching the scorer.
+QUERY_ID_PATTERN = re.compile(r"^(?P<task>[A-Z]+-[A-Z]+)-(?P<hex>[0-9a-f]{8})$")
+SUBMISSION_COLUMNS: tuple[str, ...] = ("QueryID", "SrcEntity", "TgtEntity", "Relation", "Score")
+QUERY_METADATA_COLUMNS: tuple[str, ...] = ("QueryID", "Task", "Split", "SrcEntity", "QueryMode")
+MAX_EXAMPLES_PER_RULE = 50
+
 _UNKNOWN_RELATION_RANK = len(RELATION_TIEBREAK_ORDER)
 
+# Submission rule keys, in rule order. `malformed_row` (a row without five fields)
+# belongs to rule 1 together with the header check.
+SUBMISSION_RULES: tuple[str, ...] = (
+    "malformed_row",
+    "unknown_query_id",
+    "missing_query",
+    "source_mismatch",
+    "off_pool_target",
+    "bad_relation",
+    "bad_score",
+    "duplicate_pair",
+    "incomplete_query",
+)
 
-def _rank_key(row: dict[str, str]) -> tuple[float, str, int]:
+
+class SubmissionError(ValueError):
+    """A submission violates the format; ``messages`` lists every violation."""
+
+    def __init__(self, messages: Iterable[str]) -> None:
+        self.messages = list(messages)
+        super().__init__("\n".join(self.messages))
+
+
+class EvaluationSetError(ValueError):
+    """Reference (evaluation) files violate the release contract."""
+
+    def __init__(self, messages: Iterable[str]) -> None:
+        self.messages = list(messages)
+        super().__init__("\n".join(self.messages))
+
+
+class _RuleLog:
+    """Violation counter with at most MAX_EXAMPLES_PER_RULE examples per rule."""
+
+    def __init__(self) -> None:
+        self.counts: Counter[str] = Counter()
+        self.examples: dict[str, list[str]] = defaultdict(list)
+
+    def add(self, rule: str, message: str) -> None:
+        self.counts[rule] += 1
+        if len(self.examples[rule]) < MAX_EXAMPLES_PER_RULE:
+            self.examples[rule].append(message)
+
+    def __bool__(self) -> bool:
+        return bool(self.counts)
+
+    def messages(self) -> list[str]:
+        out: list[str] = []
+        for rule in sorted(self.counts, key=_rule_position):
+            count = self.counts[rule]
+            shown = self.examples[rule]
+            more = f" (first {len(shown)} shown)" if count > len(shown) else ""
+            out.append(f"[{rule}] {count} violation(s){more}:")
+            out.extend(f"  - {example}" for example in shown)
+        return out
+
+
+def _rule_position(rule: str) -> int:
+    return SUBMISSION_RULES.index(rule) if rule in SUBMISSION_RULES else len(SUBMISSION_RULES)
+
+
+# =========================================================================
+# Query index and evaluation-file loaders
+# =========================================================================
+
+
+@dataclass(frozen=True)
+class Query:
+    query_id: str
+    task: str
+    source: str
+    candidates: frozenset[str]
+
+
+QueryIndex = dict[str, Query]
+
+
+def query_id_task(query_id: str) -> str | None:
+    """Task prefix of a well-formed QueryID, or None."""
+    match = QUERY_ID_PATTERN.match(query_id)
+    return match.group("task") if match else None
+
+
+def _require_columns(path: Path, rows_header: list[str] | None, required: Iterable[str]) -> None:
+    missing = [column for column in required if column not in (rows_header or [])]
+    if missing:
+        raise EvaluationSetError([f"{path}: missing column(s) {missing}; header is {rows_header!r}"])
+
+
+def _read_header_and_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    with Path(path).open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        rows = list(reader)
+        return list(reader.fieldnames or []), rows
+
+
+def load_query_index(paths: Iterable[str | Path]) -> QueryIndex:
     """
-    Sort key for ranking prediction rows within a single query.
-    Descending by score, ascending by TgtEntity, ascending by the
-    explicit relation order above.
+    Build the query index from candidate or answers files.
+
+    Each file must sit in a directory named after its task
+    (``tasks/<task>/<split>.cands.tsv`` or ``evaluation/<task>/<split>.answers.tsv``);
+    every ``QueryID`` must match ``<task>-<8 hex>`` with that task. Duplicate IDs
+    (across all files), empty candidate lists and duplicate candidates raise
+    :class:`EvaluationSetError`.
     """
+    index: QueryIndex = {}
+    log = _RuleLog()
+    for raw_path in paths:
+        path = Path(raw_path)
+        header, rows = _read_header_and_rows(path)
+        _require_columns(path, header, ("QueryID", "SrcEntity", "TgtCandidates"))
+        task_dir = path.parent.name
+        for line, row in enumerate(rows, start=2):
+            query_id = row.get("QueryID") or ""
+            task = query_id_task(query_id)
+            where = f"{path}:{line}"
+            if task is None:
+                log.add("query_id_format", f"{where}: QueryID {query_id!r} does not match <TASK>-<8 hex>")
+                continue
+            if task != task_dir:
+                log.add("query_id_task", f"{where}: QueryID {query_id!r} has task prefix {task!r} but the file is under {task_dir!r}")
+                continue
+            if query_id in index:
+                log.add("duplicate_query_id", f"{where}: duplicate QueryID {query_id!r}")
+                continue
+            source = row.get("SrcEntity") or ""
+            if not source:
+                log.add("empty_source", f"{where}: QueryID {query_id!r} has an empty SrcEntity")
+                continue
+            candidates = parse_list(row.get("TgtCandidates", ""))
+            if not candidates:
+                log.add("empty_candidates", f"{where}: QueryID {query_id!r} has no candidates")
+                continue
+            if len(set(candidates)) != len(candidates):
+                log.add("duplicate_candidates", f"{where}: QueryID {query_id!r} lists a candidate more than once")
+                continue
+            index[query_id] = Query(query_id, task, source, frozenset(candidates))
+    if log:
+        raise EvaluationSetError(log.messages())
+    return index
+
+
+def load_answers(path: str | Path) -> dict[str, set[tuple[str, str]]]:
+    """QueryID -> gold (TgtEntity, Relation) pairs, from an answers file
+    (``QueryID SrcEntity TgtEntities Relations TgtCandidates``)."""
+    path = Path(path)
+    header, rows = _read_header_and_rows(path)
+    _require_columns(path, header, ("QueryID", "TgtEntities", "Relations"))
+    answers: dict[str, set[tuple[str, str]]] = {}
+    log = _RuleLog()
+    for line, row in enumerate(rows, start=2):
+        query_id = row["QueryID"]
+        targets = parse_list(row["TgtEntities"])
+        relations = parse_list(row["Relations"])
+        if query_id in answers:
+            log.add("duplicate_query_id", f"{path}:{line}: duplicate QueryID {query_id!r}")
+            continue
+        if len(targets) != len(relations) or not targets:
+            log.add("malformed_gold", f"{path}:{line}: {query_id!r} has {len(targets)} targets and {len(relations)} relations")
+            continue
+        answers[query_id] = set(zip(targets, relations))
+    if log:
+        raise EvaluationSetError(log.messages())
+    return answers
+
+
+def load_preferred_pairs(path: str | Path) -> dict[str, tuple[str, str]]:
+    """QueryID -> the single preferred (TgtEntity, Relation). Raises on a
+    missing file, a duplicate QueryID or a malformed row."""
+    path = Path(path)
+    header, rows = _read_header_and_rows(path)
+    _require_columns(path, header, ("QueryID", "SrcEntity", "TgtEntity", "Relation"))
+    preferred: dict[str, tuple[str, str]] = {}
+    log = _RuleLog()
+    for line, row in enumerate(rows, start=2):
+        query_id = row.get("QueryID") or ""
+        target = row.get("TgtEntity") or ""
+        relation = row.get("Relation") or ""
+        if not query_id or not target or not relation:
+            log.add("malformed_preferred", f"{path}:{line}: empty QueryID, TgtEntity or Relation")
+            continue
+        if query_id in preferred:
+            log.add(
+                "duplicate_preferred",
+                f"{path}:{line}: second preferred pair for {query_id!r}; the release "
+                "contract requires exactly one preferred typed answer per query",
+            )
+            continue
+        preferred[query_id] = (target, relation)
+    if log:
+        raise EvaluationSetError(log.messages())
+    return preferred
+
+
+def load_graded_relevance(path: str | Path) -> dict[str, dict[tuple[str, str], float]]:
+    """QueryID -> {(TgtEntity, Relation): gain}. Raises on a duplicate
+    (QueryID, TgtEntity, Relation), an unparseable or a non-finite gain."""
+    path = Path(path)
+    header, rows = _read_header_and_rows(path)
+    _require_columns(path, header, ("QueryID", "TgtEntity", "Relation", "Gain"))
+    graded: dict[str, dict[tuple[str, str], float]] = defaultdict(dict)
+    log = _RuleLog()
+    for line, row in enumerate(rows, start=2):
+        query_id = row["QueryID"]
+        key = (row["TgtEntity"], row["Relation"])
+        try:
+            gain = float(row["Gain"])
+        except (TypeError, ValueError):
+            log.add("bad_gain", f"{path}:{line}: gain {row['Gain']!r} is not a number")
+            continue
+        if not math.isfinite(gain):
+            log.add("bad_gain", f"{path}:{line}: gain {row['Gain']!r} is not finite")
+            continue
+        if key in graded[query_id]:
+            log.add("duplicate_graded_pair", f"{path}:{line}: duplicate graded pair {query_id!r} {key!r}")
+            continue
+        graded[query_id][key] = gain
+    if log:
+        raise EvaluationSetError(log.messages())
+    return dict(graded)
+
+
+def load_query_metadata(path: str | Path) -> dict[str, dict[str, str]]:
+    """QueryID -> {Task, Split, SrcEntity, QueryMode}. Raises on duplicates."""
+    path = Path(path)
+    header, rows = _read_header_and_rows(path)
+    _require_columns(path, header, QUERY_METADATA_COLUMNS)
+    metadata: dict[str, dict[str, str]] = {}
+    log = _RuleLog()
+    for line, row in enumerate(rows, start=2):
+        query_id = row["QueryID"]
+        if query_id in metadata:
+            log.add("duplicate_metadata", f"{path}:{line}: duplicate query_metadata row for {query_id!r}")
+            continue
+        metadata[query_id] = {column: row[column] for column in QUERY_METADATA_COLUMNS}
+    if log:
+        raise EvaluationSetError(log.messages())
+    return metadata
+
+
+# =========================================================================
+# Submission loader (the single strict/lenient loader)
+# =========================================================================
+
+
+@dataclass
+class SubmissionDiagnostics:
+    queries_expected: int
+    queries_scored: int
+    dropped_rows_by_rule: dict[str, int] = field(default_factory=dict)
+    filled_pairs: int = 0
+    duplicate_pairs: int = 0
+    warnings: list[str] = field(default_factory=list)
+    # Violation count attributed to each task (rows dropped, duplicates merged,
+    # pairs filled, queries skipped); reported per task as `submission_warnings`.
+    violations_by_task: dict[str, int] = field(default_factory=dict)
+    # Violations no scored task can own: malformed rows, and unknown QueryIDs whose
+    # task prefix is missing or not among the scored tasks. Reported in the macro
+    # block as `submission_warnings_unattributed` (and in `submission_warnings_total`).
+    unattributed_violations: int = 0
+
+
+@dataclass
+class LoadedSubmission:
+    predictions_by_query: dict[str, list[dict]]
+    diagnostics: SubmissionDiagnostics
+
+
+def load_submission(
+    path: str | Path,
+    index: QueryIndex,
+    relations: tuple[str, ...] | list[str] = DEFAULT_RELATIONS,
+    strict: bool = True,
+) -> LoadedSubmission:
+    """
+    Load a five-column submission and join it to ``index`` by ``QueryID``.
+
+    Returns complete per-query prediction lists (``|candidates| x |relations|``
+    rows each, ``Score`` as float) for every present query. In strict mode any
+    violation of rules 2–8 raises :class:`SubmissionError` listing every rule
+    with up to 50 examples; in lenient mode they become warnings with the
+    documented fallback. Rule 1 (header) raises in both modes, and so does a
+    submission in which no query of a non-empty index has a valid row.
+    """
+    relations = tuple(relations)
+    relation_set = set(relations)
+    path = Path(path)
+    log = _RuleLog()
+    by_task: Counter[str] = Counter()
+    pairs_by_query: dict[str, dict[tuple[str, str], float]] = {}
+
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        header = tuple(handle.readline().rstrip("\r\n").split("\t"))
+        if header != SUBMISSION_COLUMNS:
+            raise SubmissionError([
+                f"[header] submission header is {list(header)!r}; the v0.4.0 format "
+                f"requires exactly {list(SUBMISSION_COLUMNS)!r} (tab-separated, in this "
+                "order). The positional four-column block format of v0.2–v0.3 is no "
+                "longer accepted."
+            ])
+        reader = csv.reader(handle, delimiter="\t")
+        for line, fields in enumerate(reader, start=2):
+            if len(fields) != len(SUBMISSION_COLUMNS):
+                log.add("malformed_row", f"line {line}: {len(fields)} field(s), expected {len(SUBMISSION_COLUMNS)}")
+                by_task[""] += 1
+                continue
+            query_id, source, target, relation, score_text = fields
+            query = index.get(query_id)
+            if query is None:
+                log.add("unknown_query_id", f"line {line}: unknown QueryID {query_id!r}")
+                by_task[query_id_task(query_id) or ""] += 1
+                continue
+            if source != query.source:
+                log.add("source_mismatch", f"line {line}: {query_id} SrcEntity {source!r} != {query.source!r}")
+                by_task[query.task] += 1
+                continue
+            if target not in query.candidates:
+                log.add("off_pool_target", f"line {line}: {query_id} TgtEntity {target!r} is not a candidate of this query")
+                by_task[query.task] += 1
+                continue
+            if relation not in relation_set:
+                log.add("bad_relation", f"line {line}: {query_id} Relation {relation!r} not in {list(relations)}")
+                by_task[query.task] += 1
+                continue
+            try:
+                score = float(score_text)
+            except ValueError:
+                score = math.nan
+            if not math.isfinite(score):
+                log.add("bad_score", f"line {line}: {query_id} Score {score_text!r} is not a finite float")
+                by_task[query.task] += 1
+                continue
+            pairs = pairs_by_query.setdefault(query_id, {})
+            key = (target, relation)
+            if key in pairs:
+                log.add("duplicate_pair", f"line {line}: {query_id} duplicate pair ({target}, {relation})")
+                by_task[query.task] += 1
+                if score > pairs[key]:
+                    pairs[key] = score
+                continue
+            pairs[key] = score
+
+    for query_id, query in index.items():
+        if query_id not in pairs_by_query:
+            log.add("missing_query", f"{query_id} (source {query.source}) has no valid row")
+            by_task[query.task] += 1
+
+    filled = 0
+    predictions_by_query: dict[str, list[dict]] = {}
+    for query_id, pairs in pairs_by_query.items():
+        query = index[query_id]
+        expected = len(query.candidates) * len(relations)
+        missing = expected - len(pairs)
+        if missing:
+            log.add("incomplete_query", f"{query_id}: {len(pairs)} of {expected} (candidate, relation) pairs")
+            by_task[query.task] += missing
+            filled += missing
+        rows = []
+        for target in sorted(query.candidates):
+            for relation in relations:
+                rows.append({
+                    "QueryID": query_id,
+                    "SrcEntity": query.source,
+                    "TgtEntity": target,
+                    "Relation": relation,
+                    "Score": pairs.get((target, relation), -math.inf),
+                })
+        predictions_by_query[query_id] = rows
+
+    if strict and log:
+        raise SubmissionError(log.messages())
+
+    warning_messages: list[str] = []
+    if log:
+        warning_messages = log.messages()
+        summary = (
+            f"{path.name}: lenient scoring applied fallbacks to "
+            f"{sum(log.counts.values())} violation(s) "
+            f"({', '.join(f'{rule}={count}' for rule, count in sorted(log.counts.items(), key=lambda item: _rule_position(item[0])))}); "
+            "these numbers are not leaderboard-comparable"
+        )
+        warnings.warn(summary + "\n" + "\n".join(warning_messages), UserWarning, stacklevel=2)
+    if index and not predictions_by_query:
+        raise SubmissionError(
+            ["[no_scored_queries] no query has a valid row; nothing can be scored"]
+            + warning_messages
+        )
+
+    dropped = {
+        rule: count
+        for rule, count in log.counts.items()
+        if rule in {"malformed_row", "unknown_query_id", "source_mismatch", "off_pool_target", "bad_relation", "bad_score", "duplicate_pair"}
+    }
+    index_tasks = {query.task for query in index.values()}
+    diagnostics = SubmissionDiagnostics(
+        queries_expected=len(index),
+        queries_scored=len(predictions_by_query),
+        dropped_rows_by_rule=dropped,
+        filled_pairs=filled,
+        duplicate_pairs=log.counts.get("duplicate_pair", 0),
+        warnings=warning_messages,
+        violations_by_task={task: count for task, count in by_task.items() if task in index_tasks},
+        unattributed_violations=sum(count for task, count in by_task.items() if task not in index_tasks),
+    )
+    return LoadedSubmission(predictions_by_query=predictions_by_query, diagnostics=diagnostics)
+
+
+def predictions_from_rows(rows: Iterable[dict]) -> dict[str, list[dict]]:
+    """Group already-validated in-memory prediction rows by QueryID (scores as
+    floats). For organiser tooling that scores rows it produced itself; files
+    from anywhere else go through :func:`load_submission`."""
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        grouped[row["QueryID"]].append({**row, "Score": float(row["Score"])})
+    return dict(grouped)
+
+
+# =========================================================================
+# Metrics
+# =========================================================================
+
+
+def rank_key(row: dict) -> tuple[float, str, int]:
+    """Ranking order within a query: descending score, then TgtEntity, then
+    the explicit relation order."""
     return (
-        -float(row.get("Score", 0.0)),
+        -float(row["Score"]),
         row["TgtEntity"],
         RELATION_TIEBREAK_ORDER.get(row["Relation"], _UNKNOWN_RELATION_RANK),
     )
 
 
-# =========================================================================
-# Loaders
-# =========================================================================
-
-
-def load_answers(
-    path: str | Path,
-) -> dict[tuple[str, str], set[tuple[str, str]]]:
-    """
-    Load per-query gold answers from an answers/cands TSV.
-
-    Supports both shapes:
-
-    * **Train/valid public cands and private test answers** (5 columns):
-      SrcEntity, QueryID, TgtEntities, Relations, TgtCandidates.
-      Gold is read from the list-valued TgtEntities and Relations.
-    * **Legacy / hand-rolled inputs**: singleton TgtEntity and Relation
-      columns are accepted where the list-valued columns are absent, and
-      a missing QueryID defaults to "Q0".
-
-    Returns
-    -------
-    dict[(SrcEntity, QueryID), set[(TgtEntity, Relation)]]
-        Per-query gold pair set.
-    """
-    answers: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
-    for row in read_tsv(path):
-        src = row["SrcEntity"]
-        query_id = row.get("QueryID", "Q0")
-        if row.get("TgtEntities", "").startswith("["):
-            targets = parse_list(row["TgtEntities"])
-        else:
-            targets = [row["TgtEntity"]]
-        if row.get("Relations", "").startswith("["):
-            relations = parse_list(row["Relations"])
-        else:
-            relations = [row["Relation"]]
-        if len(targets) != len(relations):
-            raise ValueError(
-                f"Answer target/relation list length mismatch for "
-                f"({src!r}, {query_id!r})"
-            )
-        for target, relation in zip(targets, relations):
-            answers[(src, query_id)].add((target, relation))
-    return answers
-
-
-def load_per_query_candidate_sets(
-    path: str | Path,
-) -> dict[tuple[str, str], set[str]]:
-    """
-    Load per-query candidate sets from a cands or answers TSV.
-
-    Returns {(SrcEntity, QueryID): {candidate_id, ...}} from the
-    TgtCandidates column. Files without a QueryID column fall
-    back to "Q0".
-
-    Note: the public test.cands.tsv (v0.2.0 schema) has only
-    SrcEntity, TgtCandidates. Under the pool model, the same
-    SrcEntity legitimately appears twice (Q0 + Q1); calling this
-    helper on test.cands.tsv would silently merge them under the
-    "Q0" fallback. For positional per-query work against a public
-    test file, use the block-format prediction loader (which walks the
-    cands file by row order, not by source key) instead.
-    """
-    sets: dict[tuple[str, str], set[str]] = {}
-    for row in read_tsv(path):
-        src = row["SrcEntity"]
-        query_id = row.get("QueryID", "Q0")
-        candidates = parse_list(row.get("TgtCandidates", "[]"))
-        sets[(src, query_id)] = set(candidates)
-    return sets
-
-
-def load_preferred_pairs(
-    path: str | Path,
-) -> dict[tuple[str, str], tuple[str, str]]:
-    """
-    Load per-query preferred (target, relation) gold pairs.
-
-    File schema (v0.2.0): SrcEntity, QueryID, TgtEntity, Relation.
-    Files without a QueryID column fall back to "Q0". Under
-    the pool model, the per-(SrcEntity, QueryID) keying preserves
-    both the Q0 and Q1 preferred pairs; collapsing by SrcEntity
-    alone would silently overwrite one with the other.
-
-    Returns
-    -------
-    dict[(SrcEntity, QueryID), (TgtEntity, Relation)]
-        Per-query preferred pair. Empty dict if path does not
-        exist. The release contract guarantees exactly one preferred
-        pair per query; a duplicate (SrcEntity, QueryID) key is a
-        malformed input and raises rather than silently overwriting
-        one pair with the other.
-    """
-    path = Path(path)
-    if not path.exists():
-        return {}
-    preferred: dict[tuple[str, str], tuple[str, str]] = {}
-    for row in read_tsv(path):
-        src = row["SrcEntity"]
-        query_id = row.get("QueryID", "Q0")
-        key = (src, query_id)
-        if key in preferred:
-            raise ValueError(
-                f"{path}: duplicate preferred pair for query {key!r} "
-                f"({preferred[key]!r} and ({row['TgtEntity']!r}, "
-                f"{row['Relation']!r})); the release contract requires exactly "
-                "one preferred typed answer per query"
-            )
-        preferred[key] = (row["TgtEntity"], row["Relation"])
-    return preferred
-
-
-def load_block_format_predictions(
-    predictions_path: str | Path,
-    answers_path: str | Path,
-    relations: tuple[str, ...] | list[str] = DEFAULT_RELATIONS,
-    candidate_count: int = 50,
-    strict: bool = True,
-) -> list[dict[str, str]]:
-    """
-    Load a participant submission in the v0.2.0 block-scoring format.
-
-    Block-scoring format
-    --------------------
-    
-    The submission TSV has four columns:
-
-      SrcEntity, TgtEntity, Relation, Score
-
-    There is no QueryID column. Rows are grouped positionally into
-    blocks of size candidate_count x len(relations) (canonical:
-    50 x 3 = 150). Block k corresponds positionally to the k-th
-    row of the answers TSV (which carries QueryID and TgtCandidates).
-
-    Within a block, rows can appear in any order; the loader indexes
-    by (TgtEntity, Relation) and emits one output row per canonical 
-    (candidate, relation) pair drawn from the answers TSV's TgtCandidates 
-    list, with duplicates max-merged and missing pairs zero-filled.
-
-    Strictness rules
-    ----------------
-
-    +-----------------------------------------------------+-----------------+
-    | Condition                                           | Behaviour       |
-    +=====================================================+=================+
-    | Total row count != N_queries x block_size           | Fatal           |
-    +-----------------------------------------------------+-----------------+
-    | A block contains rows whose SrcEntity disagrees     | Fatal           |
-    | with the corresponding answers row                  |                 |
-    +-----------------------------------------------------+-----------------+
-    | Row's Relation not in relations                 | Fatal           |
-    +-----------------------------------------------------+-----------------+
-    | Score column not parseable as float                 | Fatal           |
-    +-----------------------------------------------------+-----------------+
-    | Duplicate (TgtEntity, Relation) pair within a block | Warn, take max  |
-    +-----------------------------------------------------+-----------------+
-    | Missing (TgtEntity, Relation) pair within a block   | Warn, score 0   |
-    +-----------------------------------------------------+-----------------+
-    | Row's TgtEntity not in that query's candidate set   | Silently filter |
-    +-----------------------------------------------------+-----------------+
-
-    Fatal conditions raise a ValueError; warn conditions emit a UserWarning. 
-    The silent filter drops the offending row from the output and the canonical 
-    pair it should have occupied is surfaced by the missing-pair warning below.
-
-    Parameters
-    ----------
-    predictions_path
-        Participant submission TSV in block-scoring format.
-    answers_path
-        Either the public train/valid cands TSV (for self-scoring) or
-        the private test answers TSV. Both carry QueryID and TgtCandidates.
-    relations
-        Canonical relation list. Defaults to DEFAULT_RELATIONS.
-    candidate_count
-        Number of candidates per query. Canonical 50.
-    strict
-        When True (default), all rules above apply. When False, the
-        loader skips per-row validation and emits raw rows with
-        QueryID propagated — useful for round-tripping legacy
-        fixtures.
-
-    Returns
-    -------
-    list[dict[str, str]]
-        Rows with columns SrcEntity, QueryID, TgtEntity, Relation, Score.
-    """
-    relations_tuple = tuple(relations)
-    relations_set = set(relations_tuple)
-    block_size = int(candidate_count) * len(relations_tuple)
-    if block_size <= 0:
-        raise ValueError(
-            f"load_block_format_predictions: block_size = {block_size}; "
-            f"candidate_count={candidate_count}, "
-            f"relations={list(relations_tuple)}"
-        )
-
-    answer_rows = list(read_tsv(answers_path))
-    n_queries = len(answer_rows)
-    submission_rows = list(read_tsv(predictions_path))
-    expected_total = n_queries * block_size
-    if len(submission_rows) != expected_total:
-        raise ValueError(
-            f"Block-format submission row count mismatch: got "
-            f"{len(submission_rows)} rows, expected {expected_total} "
-            f"({n_queries} queries x {block_size} block size). The "
-            f"submission must contain exactly {block_size} rows per "
-            f"query in the canonical cands.tsv / answers.tsv row order."
-        )
-
-    if not strict:
-        enriched_loose: list[dict[str, str]] = []
-        for block_idx, answer_row in enumerate(answer_rows):
-            block_src = answer_row["SrcEntity"]
-            block_query_id = answer_row.get("QueryID", "Q0")
-            start = block_idx * block_size
-            end = start + block_size
-            for sub_row in submission_rows[start:end]:
-                enriched_loose.append({
-                    "SrcEntity": sub_row.get("SrcEntity", block_src),
-                    "QueryID": block_query_id,
-                    "TgtEntity": sub_row.get("TgtEntity", ""),
-                    "Relation": sub_row.get("Relation", ""),
-                    "Score": sub_row.get("Score", "0"),
-                })
-        return enriched_loose
-
-    enriched: list[dict[str, str]] = []
-    for block_idx, answer_row in enumerate(answer_rows):
-        block_src = answer_row["SrcEntity"]
-        block_query_id = answer_row.get("QueryID", "Q0")
-        block_candidates = set(parse_list(answer_row.get("TgtCandidates", "[]")))
-        start = block_idx * block_size
-        end = start + block_size
-
-        block_index: dict[tuple[str, str], float] = {}
-        duplicates_seen: set[tuple[str, str]] = set()
-        for row_offset, sub_row in enumerate(submission_rows[start:end]):
-            row_idx = start + row_offset
-            sub_src = sub_row.get("SrcEntity", "")
-            if sub_src != block_src:
-                raise ValueError(
-                    f"Block-format submission row {row_idx}: SrcEntity "
-                    f"{sub_src!r} does not match the canonical SrcEntity "
-                    f"{block_src!r} for block {block_idx} (per the "
-                    f"answers/cands row order). Each block of "
-                    f"{block_size} consecutive rows must share a single "
-                    f"SrcEntity, in the order documented in "
-                    f"documentation/submission_format.md."
-                )
-            tgt = sub_row.get("TgtEntity", "")
-            rel = sub_row.get("Relation", "")
-            if rel not in relations_set:
-                raise ValueError(
-                    f"Block-format submission row {row_idx}: Relation "
-                    f"{rel!r} is not in the canonical relation list "
-                    f"{sorted(relations_set)}."
-                )
-            score_str = sub_row.get("Score", "")
-            try:
-                score = float(score_str)
-            except (TypeError, ValueError):
-                raise ValueError(
-                    f"Block-format submission row {row_idx}: Score "
-                    f"{score_str!r} is not parseable as a float."
-                ) from None
-            if not math.isfinite(score):
-                # NaN/inf poison the sort order (submission_format.md:
-                # "Any finite float is valid; NaN and infinity are rejected")
-                raise ValueError(
-                    f"Block-format submission row {row_idx}: Score "
-                    f"{score_str!r} is not a finite float; NaN and infinity "
-                    f"are rejected."
-                )
-
-            if tgt not in block_candidates:
-                # Silent: drop rows whose TgtEntity isn't in the
-                # query's candidate set. The missing canonical pair
-                # the row should have occupied surfaces in the Pass-2
-                # missing-pair warning below.
-                continue
-
-            key = (tgt, rel)
-            if key in block_index:
-                duplicates_seen.add(key)
-                if score > block_index[key]:
-                    block_index[key] = score
-            else:
-                block_index[key] = score
-
-        if duplicates_seen:
-            warnings.warn(
-                f"Block {block_idx} (SrcEntity {block_src!r}, "
-                f"QueryID {block_query_id!r}): "
-                f"{len(duplicates_seen)} duplicate (TgtEntity, Relation) "
-                f"pair(s); kept the maximum score per pair. First few: "
-                f"{sorted(duplicates_seen)[:5]}"
-                + (" ..." if len(duplicates_seen) > 5 else ""),
-                UserWarning,
-                stacklevel=2,
-            )
-
-        missing_pairs: list[tuple[str, str]] = []
-        for tgt in sorted(block_candidates):
-            for rel in relations_tuple:
-                key = (tgt, rel)
-                if key in block_index:
-                    score_val = block_index[key]
-                else:
-                    # -inf, not 0.0: negative scores are explicitly allowed, and a
-                    # 0.0 fill would outrank every negative-scored real prediction.
-                    score_val = float("-inf")
-                    missing_pairs.append(key)
-                enriched.append({
-                    "SrcEntity": block_src,
-                    "QueryID": block_query_id,
-                    "TgtEntity": tgt,
-                    "Relation": rel,
-                    # repr round-trips float64 exactly; %.6f collapsed sub-1e-6
-                    # score gaps into ties re-ordered by the alphabetical tie-break
-                    "Score": repr(score_val),
-                })
-
-        if missing_pairs:
-            warnings.warn(
-                f"Block {block_idx} (SrcEntity {block_src!r}, "
-                f"QueryID {block_query_id!r}): "
-                f"{len(missing_pairs)} canonical (TgtEntity, Relation) "
-                f"pair(s) missing from the submission; assigned score "
-                f"-inf (last-rank). First few: "
-                f"{missing_pairs[:5]}"
-                + (" ..." if len(missing_pairs) > 5 else ""),
-                UserWarning,
-                stacklevel=2,
-            )
-
-    return enriched
-
+def rank_query(rows: list[dict]) -> list[dict]:
+    return sorted(rows, key=rank_key)
 
 
 def ndcg(relevance: list[int], k: int, ideal_count: int) -> float:
@@ -475,44 +563,16 @@ def mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
-####
-# Per-query scorer (the entry point most callers want)
-###
-
-
 def score_prediction_rows(
-    predictions: list[dict[str, str]],
-    answers: dict[tuple[str, str], set[tuple[str, str]]],
+    predictions_by_query: dict[str, list[dict]],
+    answers: dict[str, set[tuple[str, str]]],
+    preferred_pairs: dict[str, tuple[str, str]],
+    graded_relevance: dict[str, dict[tuple[str, str], float]],
     k: int = 10,
-    preferred_pairs: dict[tuple[str, str], tuple[str, str]] | None = None,
-    graded_relevance: dict[tuple[str, str], dict[tuple[str, str], float]] | None = None,
 ) -> dict[str, float]:
-    """
-    Compute metrics for prediction rows against per-query gold.
+    """Metrics over the queries in ``answers`` (all inputs keyed by QueryID)."""
+    from .hierarchy import hierarchy_aware_ndcg
 
-    All inputs are keyed by (SrcEntity, QueryID). Predictions
-    arrive enriched with a QueryID column (typically from
-    :func:`load_block_format_predictions`); rows are partitioned by
-    that key for per-query scoring.
-
-    Output keys:
-
-    * diagnostic_* — kit-only set-based metrics over the full gold
-      set. Not the leaderboard score.
-    * preferred_typed_* — preferred-pair MRR + Hits@K (paper §1.5
-      primary). Emitted when preferred_pairs is supplied.
-    * preferred_entity_relation_* — Macro-F1 on entity-correct
-      subset (paper §1.5 (ii)/(iii)). Emitted with preferred_pairs.
-    * hierarchy_aware_typed_ndcg_at_10 — H-nDCG@10 (paper §1.5
-      secondary). Emitted when graded_relevance is supplied.
-    """
-    # Partition predictions by (SrcEntity, QueryID):
-    by_query: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
-    for row in predictions:
-        key = (row["SrcEntity"], row.get("QueryID", "Q0"))
-        by_query[key].append(row)
-
-    # Diagnostic accumulators:
     ndcgs: list[float] = []
     mrrs: list[float] = []
     hits1: list[float] = []
@@ -523,105 +583,77 @@ def score_prediction_rows(
     fp: dict[str, int] = defaultdict(int)
     fn: dict[str, int] = defaultdict(int)
 
-    # Preferred-pair accumulators:
     pref_rrs: list[float] = []
     pref_hits1: list[float] = []
     pref_hits5: list[float] = []
     pref_hits10: list[float] = []
-    pref_tp: dict[str, int] = defaultdict(int)
-    pref_fp: dict[str, int] = defaultdict(int)
-    pref_fn: dict[str, int] = defaultdict(int)
-    pref_entity_correct_count = 0
-    pref_top_relation_correct_count = 0
+    pref_ranks: list[float] = []
+    gated_tp: dict[str, int] = defaultdict(int)
+    gated_fp: dict[str, int] = defaultdict(int)
+    gated_fn: dict[str, int] = defaultdict(int)
+    gated_count = 0
+    gated_correct = 0
 
-    # Hierarchy-aware accumulators:
     h_ndcgs: list[float] = []
 
-    # Local imports to avoid module-level circular dependency:
-    from .hierarchy import hierarchy_aware_ndcg
-
-    for query_key, gold in sorted(answers.items()):
-        ranked = sorted(by_query.get(query_key, []), key=_rank_key)
+    for query_id in sorted(answers):
+        gold = answers[query_id]
+        ranked = rank_query(predictions_by_query.get(query_id, []))
 
         # diagnostic (set-based) metrics
-        relevance = [
-            1 if (row["TgtEntity"], row["Relation"]) in gold else 0
-            for row in ranked
-        ]
-        # k unchanged: DCG self-truncates via relevance[:k]; shrinking k here
-        # also shrank the IDCG denominator, inflating short row-format lists
+        relevance = [1 if (row["TgtEntity"], row["Relation"]) in gold else 0 for row in ranked]
         ndcgs.append(ndcg(relevance, k, ideal_count=len(gold)))
         mrrs.append(reciprocal_rank(relevance))
         hits1.append(1.0 if any(relevance[:1]) else 0.0)
         hits5.append(1.0 if any(relevance[:5]) else 0.0)
         hits10.append(1.0 if any(relevance[:10]) else 0.0)
         aps.append(average_precision(relevance, len(gold)))
-
         predicted_positive = {(row["TgtEntity"], row["Relation"]) for row in ranked[:1]}
         for pair in predicted_positive:
-            relation = pair[1]
             if pair in gold:
-                tp[relation] += 1
+                tp[pair[1]] += 1
             else:
-                fp[relation] += 1
+                fp[pair[1]] += 1
         for pair in gold - predicted_positive:
             fn[pair[1]] += 1
 
-        # Preferred-pair metrics:
-        if preferred_pairs is not None and query_key in preferred_pairs:
-            preferred = preferred_pairs[query_key]
-            pref_relevance = [
-                1 if (row["TgtEntity"], row["Relation"]) == preferred else 0
-                for row in ranked
-            ]
-            pref_rrs.append(reciprocal_rank(pref_relevance))
-            pref_hits1.append(1.0 if any(pref_relevance[:1]) else 0.0)
-            pref_hits5.append(1.0 if any(pref_relevance[:5]) else 0.0)
-            pref_hits10.append(1.0 if any(pref_relevance[:10]) else 0.0)
+        preferred = preferred_pairs[query_id]
+        rank = next(
+            (position for position, row in enumerate(ranked, start=1) if (row["TgtEntity"], row["Relation"]) == preferred),
+            None,
+        )
+        if rank is None:
+            pref_rrs.append(0.0)
+            pref_hits1.append(0.0)
+            pref_hits5.append(0.0)
+            pref_hits10.append(0.0)
+            pref_ranks.append(float(len(ranked) + 1))
+        else:
+            pref_rrs.append(1.0 / rank)
+            pref_hits1.append(1.0 if rank <= 1 else 0.0)
+            pref_hits5.append(1.0 if rank <= 5 else 0.0)
+            pref_hits10.append(1.0 if rank <= 10 else 0.0)
+            pref_ranks.append(float(rank))
 
-            # Relation Macro-F1 on the Preferred Entity (paper §1.5).
-            # Collapse the per-query ranking to entity-only by taking
-            # the max score per entity; if the top entity matches the
-            # preferred target, contribute one observation to the F1
-            # accumulators using the top-1 row's relation as the
-            # system's relation prediction.
+        # Relation typing on the preferred entity, gated: a query counts only when
+        # its top-ranked entity (per-entity max score, entity-id tie-break) IS the
+        # preferred target. The top row of the ranking is exactly that entity's
+        # best relation, so its relation is the system's relation prediction.
+        if ranked and ranked[0]["TgtEntity"] == preferred[0]:
+            gated_count += 1
+            predicted_relation = ranked[0]["Relation"]
+            if predicted_relation == preferred[1]:
+                gated_correct += 1
+                gated_tp[preferred[1]] += 1
+            else:
+                gated_fp[predicted_relation] += 1
+                gated_fn[preferred[1]] += 1
 
-            best_score_by_entity: dict[str, float] = {}
-            for position, row in enumerate(ranked):
-                try:
-                    score = float(row.get("Score", -position))
-                except (TypeError, ValueError):
-                    score = -float(position)
-                tgt = row["TgtEntity"]
-                if tgt not in best_score_by_entity or score > best_score_by_entity[tgt]:
-                    best_score_by_entity[tgt] = score
+        query_gains = graded_relevance.get(query_id)
+        if query_gains:
+            h_ndcgs.append(hierarchy_aware_ndcg(ranked, query_gains, k))
 
-            if best_score_by_entity:
-                top_entity = max(
-                    best_score_by_entity.keys(),
-                    key=lambda e: (best_score_by_entity[e],
-                                   -ranked.index(next(r for r in ranked
-                                                       if r["TgtEntity"] == e))),
-                )
-                preferred_target, preferred_relation = preferred
-                if top_entity == preferred_target:
-                    pref_entity_correct_count += 1
-                    top_row = ranked[0]
-                    predicted_relation = top_row["Relation"]
-                    if predicted_relation == preferred_relation:
-                        pref_tp[preferred_relation] += 1
-                        pref_top_relation_correct_count += 1
-                    else:
-                        pref_fp[predicted_relation] += 1
-                        pref_fn[preferred_relation] += 1
-
-        # Hierarchy-Aware Typed nDCG@10:
-        if graded_relevance is not None and query_key in graded_relevance:
-            query_gains = graded_relevance[query_key]
-            if query_gains:
-                h_ndcgs.append(hierarchy_aware_ndcg(ranked, query_gains, k))
-
-    metrics: dict[str, float] = {
+    return {
         "diagnostic_relation_aware_ndcg_at_10": mean(ndcgs),
         "diagnostic_mrr": mean(mrrs),
         "diagnostic_hits_at_1": mean(hits1),
@@ -630,243 +662,243 @@ def score_prediction_rows(
         "diagnostic_map": mean(aps),
         "diagnostic_top1_relation_macro_f1": macro_f1(tp, fp, fn),
         "queries": float(len(answers)),
+        "preferred_typed_mrr": mean(pref_rrs),
+        "preferred_typed_hits_at_1": mean(pref_hits1),
+        "preferred_typed_hits_at_5": mean(pref_hits5),
+        "preferred_typed_hits_at_10": mean(pref_hits10),
+        "median_preferred_typed_rank": float(statistics.median(pref_ranks)) if pref_ranks else 0.0,
+        "preferred_typed_queries": float(len(pref_rrs)),
+        "preferred_entity_relation_accuracy": gated_correct / gated_count if gated_count else 0.0,
+        "preferred_entity_relation_macro_f1": macro_f1(gated_tp, gated_fp, gated_fn) if gated_count else 0.0,
+        "preferred_entity_relation_queries": float(gated_count),
+        "hierarchy_aware_typed_ndcg_at_10": mean(h_ndcgs),
+        "hierarchy_aware_typed_ndcg_at_10_queries": float(len(h_ndcgs)),
     }
 
-    if preferred_pairs is not None:
-        metrics["preferred_typed_mrr"] = mean(pref_rrs)
-        metrics["preferred_typed_hits_at_1"] = mean(pref_hits1)
-        metrics["preferred_typed_hits_at_5"] = mean(pref_hits5)
-        metrics["preferred_typed_hits_at_10"] = mean(pref_hits10)
-        metrics["preferred_typed_queries"] = float(len(pref_rrs))
 
-        if pref_entity_correct_count > 0:
-            metrics["preferred_entity_relation_accuracy"] = (
-                pref_top_relation_correct_count / pref_entity_correct_count
-            )
-            metrics["preferred_entity_relation_macro_f1"] = macro_f1(
-                pref_tp, pref_fp, pref_fn
-            )
-        else:
-            metrics["preferred_entity_relation_accuracy"] = 0.0
-            metrics["preferred_entity_relation_macro_f1"] = 0.0
-        metrics["preferred_entity_relation_queries"] = float(pref_entity_correct_count)
-
-    if graded_relevance is not None:
-        metrics["hierarchy_aware_typed_ndcg_at_10"] = mean(h_ndcgs)
-        metrics["hierarchy_aware_typed_ndcg_at_10_queries"] = float(len(h_ndcgs))
-
-    return metrics
+# =========================================================================
+# Evaluation sets, tasks, submissions
+# =========================================================================
 
 
-###
-# File-level entry point
-###
+@dataclass
+class EvaluationSet:
+    """The reference files of one (task, split), loaded and validated."""
+
+    task: str
+    split: str
+    index: QueryIndex
+    answers: dict[str, set[tuple[str, str]]]
+    preferred: dict[str, tuple[str, str]]
+    graded: dict[str, dict[tuple[str, str], float]]
+    metadata: dict[str, dict[str, str]]
 
 
-def score_files(
-    predictions_path: str | Path,
-    answers_path: str | Path,
-    output_path: str | Path | None = None,
-    preferred_path: str | Path | None = None,
-    graded_path: str | Path | None = None,
-    candidate_count: int | None = None,
-    relations: tuple[str, ...] | list[str] = DEFAULT_RELATIONS,
-    submission_format: str = "block",
+def evaluation_paths(evaluation_dir: str | Path, task: str, split: str) -> dict[str, Path]:
+    """Sibling discovery: ``evaluation/<task>/<split>.answers.tsv`` ->
+    ``<split>.preferred.tsv`` and ``<split>.graded.tsv`` in the same directory,
+    plus ``evaluation/query_metadata.tsv``. Nothing else."""
+    root = Path(evaluation_dir)
+    task_dir = root / task
+    return {
+        "answers": task_dir / f"{split}.answers.tsv",
+        "preferred": task_dir / f"{split}.preferred.tsv",
+        "graded": task_dir / f"{split}.graded.tsv",
+        "metadata": root / "query_metadata.tsv",
+    }
+
+
+def load_evaluation_set(
+    evaluation_dir: str | Path,
+    task: str,
+    split: str,
+    relations: tuple[str, ...] = DEFAULT_RELATIONS,
+) -> EvaluationSet:
+    """Load one (task, split)'s reference files and validate them in full with
+    the shared validator; raises :class:`EvaluationSetError` naming the IDs."""
+    from .evaluation import validate_evaluation_set
+
+    paths = evaluation_paths(evaluation_dir, task, split)
+    missing = [str(path) for path in paths.values() if not path.is_file()]
+    if missing:
+        raise EvaluationSetError([f"missing evaluation file(s) for {task}/{split}: {missing}"])
+    index = load_query_index([paths["answers"]])
+    answers = load_answers(paths["answers"])
+    preferred = load_preferred_pairs(paths["preferred"])
+    graded = load_graded_relevance(paths["graded"])
+    metadata = {
+        query_id: row
+        for query_id, row in load_query_metadata(paths["metadata"]).items()
+        if row["Task"] == task and row["Split"] == split
+    }
+    errors = validate_evaluation_set(index, answers, preferred, graded, metadata, relations)
+    if errors:
+        raise EvaluationSetError([f"{task}/{split}: evaluation set is invalid"] + errors)
+    return EvaluationSet(task, split, index, answers, preferred, graded, metadata)
+
+
+def score_task(
+    loaded: LoadedSubmission,
+    evaluation_dir: str | Path,
+    task: str,
+    split: str,
     strict: bool = True,
-    graph_dir: str | Path | None = None,
-    souffle_bin: str = "souffle",
-    conflict_report_path: str | Path | None = None,
 ) -> dict[str, float]:
     """
-    Score a participant submission against a public answers/cands TSV.
+    Score one task of a loaded submission against ``evaluation_dir``.
 
-    The default submission_format="block" matches the canonical
-    participant contract: predictions are a 4-column TSV
-    (SrcEntity, TgtEntity, Relation, Score) and per-query
-    partitioning is recovered positionally from answers_path's row
-    order. Use submission_format="row" when the predictions file
-    already has a QueryID column (local scoring against train/valid
-    splits where QueryID is available).
-
-    Candidate-count handling
-    ------------------------
-
-    When candidate_count is omitted (None, the default), the
-    scorer reads the first row of answers_path and uses
-    len(TgtCandidates) as the per-query candidate count. This is
-    correct for any release where every query has the same candidate
-    cardinality — which is the canonical case (50 for the public
-    release, 4 for the bundled mini fixture, 50 for the bundled
-    canonical fixture). Pass an explicit integer when scoring against
-    a fixture with mixed candidate counts or to enforce a specific
-    expected value.
-
-    Headline-metric discovery
-    -------------------------
-
-    Two optional files unlock the leaderboard metric families:
-
-    * preferred_path -> preferred-pair metrics (paper §1.5 primary).
-      Falls back to <answers_root>.preferred.tsv adjacent to the
-      answers file.
-    * graded_path -> Hierarchy-Aware Typed nDCG@10 (paper §1.5
-      secondary). Falls back to <answers_root>.graded.tsv.
-
-    The discovery rule strips .answers.tsv from the answers file
-    when present; otherwise it strips the final extension. Each
-    optional family is skipped (with a note on stderr) when neither
-    explicit path nor fallback resolves to an existing file.
-
-    The diagnostic metrics are always emitted. They use binary set
-    membership against the full gold set and are NOT the leaderboard
-    score; participants should report preferred_typed_* and
-    hierarchy_aware_typed_* keys instead.
+    The reference files are validated in full before scoring is restricted to the
+    queries present in the submission. Strict mode requires every query of the
+    task; lenient results carry ``queries_expected``, ``queries_scored`` and
+    ``submission_warnings``, and a task without any scored query gets only those
+    three counts.
     """
-    import sys
+    evaluation = load_evaluation_set(evaluation_dir, task, split)
+    return score_evaluation_set(loaded, evaluation, strict=strict)
 
-    from .hierarchy import load_graded_relevance
 
-    answers_path = Path(answers_path)
-    answers = load_answers(answers_path)
+def score_evaluation_set(
+    loaded: LoadedSubmission,
+    evaluation: EvaluationSet,
+    strict: bool = True,
+) -> dict[str, float]:
+    present = [query_id for query_id in sorted(evaluation.index) if query_id in loaded.predictions_by_query]
+    log = _RuleLog()
+    for query_id in present:
+        query = evaluation.index[query_id]
+        rows = loaded.predictions_by_query[query_id]
+        if {row["TgtEntity"] for row in rows} != set(query.candidates) or any(
+            row["SrcEntity"] != query.source for row in rows
+        ):
+            log.add("index_mismatch", f"{query_id}: the submission was joined against a different pool/source than the evaluation set")
+    if log:
+        raise EvaluationSetError(log.messages())
+    if strict and len(present) != len(evaluation.index):
+        missing = [query_id for query_id in sorted(evaluation.index) if query_id not in loaded.predictions_by_query]
+        raise SubmissionError([f"[missing_query] {len(missing)} {evaluation.task}/{evaluation.split} query(ies) absent, e.g. {missing[:5]}"])
 
-    if submission_format == "block":
-        # Auto-detect candidate_count from the answers file if the
-        # caller didn't pin one. Works because the canonical release
-        # and all bundled fixtures use a uniform candidate count per
-        # release (50 in the canonical release; 4 in the mini
-        # fixture). Falls back to 50 only when the answers file is
-        # empty (mostly to avoid a TypeError in the error path).
-        if candidate_count is None:
-            answer_rows_for_inspection = list(read_tsv(answers_path))
-            if answer_rows_for_inspection:
-                first = answer_rows_for_inspection[0]
-                detected = len(parse_list(first.get("TgtCandidates", "[]")))
-                candidate_count = detected if detected > 0 else 50
-            else:
-                candidate_count = 50
-        predictions = load_block_format_predictions(
-            predictions_path,
-            answers_path,
-            relations=relations,
-            candidate_count=candidate_count,
-            strict=strict,
-        )
-    elif submission_format == "row":
-        # Round-trip path for prediction files that already carry an
-        # explicit QueryID column. The participant-facing v0.2.0
-        # submission format is "block"; this branch exists for kit
-        # tests and for hand-authored prediction files used during
-        # local development.
-        predictions = read_tsv(predictions_path)
-    else:
-        raise ValueError(
-            f"submission_format must be 'block' or 'row'; got "
-            f"{submission_format!r}."
-        )
-
-    # Resolve the conventional sibling-path stem for the three
-    # optional metric files. We strip .answers.tsv when present;
-    # otherwise we drop the final suffix. This mirrors the organiser
-    # release layout where NCIT-DOID.valid.answers.tsv has
-    # siblings NCIT-DOID.valid.preferred.tsv, ...graded.tsv,
-    # ...graded.tsv.
-    name = answers_path.name
-    if name.endswith(".answers.tsv"):
-        stem = name[: -len(".answers.tsv")]
-    elif name.endswith(".cands.tsv"):
-        # Train/valid public cands.tsv with gold columns; the
-        # convention places the gold pair file under
-        # <task>.<split>.preferred.tsv next to the cands file. The
-        # public release ships these under tasks/<TASK>/ next to
-        # the cands TSV, while the kit example fixture puts them
-        # under answers/<TASK>.<split>.... Both conventions are
-        # tried below.
-        stem = name[: -len(".cands.tsv")]
-    else:
-        stem = answers_path.stem
-
-    def _sibling(suffix: str) -> Path | None:
-        """Return the first existing metric file for this answers file.
-
-        Probes, in order: the same directory (kit examples layout), the same
-        directory with a split-qualified name, and the organiser private
-        release layout (hidden_test_answers/ with preferred_pairs/ and
-        graded_relevance/ as sibling directories, files named
-        <task>.test<suffix>).
-        """
-        candidates = [
-            answers_path.with_name(stem + suffix),
-            answers_path.with_name(stem + ".test" + suffix),
-        ]
-        if answers_path.parent.name == "hidden_test_answers":
-            task_stem = stem[: -len(".answers")] if stem.endswith(".answers") else stem
-            sibling_dir = {
-                ".preferred.tsv": "preferred_pairs",
-                ".graded.tsv": "graded_relevance",
-            }.get(suffix)
-            if sibling_dir is not None:
-                candidates.append(
-                    answers_path.parent.parent / sibling_dir / f"{task_stem}.test{suffix}"
-                )
-        for cand in candidates:
-            if cand.exists():
-                return cand
-        return None
-
-    preferred_pairs: dict[tuple[str, str], tuple[str, str]] | None = None
-    if preferred_path is not None:
-        cand = Path(preferred_path)
-        if cand.exists():
-            preferred_pairs = load_preferred_pairs(cand)
-    else:
-        cand = _sibling(".preferred.tsv")
-        if cand is not None:
-            preferred_pairs = load_preferred_pairs(cand)
-    if preferred_pairs is None:
-        print(
-            "note: preferred-pair metrics skipped — no *.preferred.tsv file "
-            "found alongside answers; reporting diagnostic metrics only. "
-            "Leaderboard scores use the preferred-pair family (paper §1.5).",
-            file=sys.stderr,
-        )
-
-    graded_relevance: dict[tuple[str, str], dict[tuple[str, str], float]] | None = None
-    if graded_path is not None:
-        cand = Path(graded_path)
-        if cand.exists():
-            graded_relevance = load_graded_relevance(cand)
-    else:
-        cand = _sibling(".graded.tsv")
-        if cand is not None:
-            graded_relevance = load_graded_relevance(cand)
-    if graded_relevance is None:
-        print(
-            "note: Hierarchy-Aware Typed nDCG@10 skipped — no *.graded.tsv "
-            "file found alongside answers. Build one with the "
-            "`build-graded-relevance` CLI helper, or use the public release "
-            "which ships pre-computed graded relevance.",
-            file=sys.stderr,
-        )
-
-    metrics = score_prediction_rows(
-        predictions,
-        answers,
-        preferred_pairs=preferred_pairs,
-        graded_relevance=graded_relevance,
-    )
-    if graph_dir is not None:
-        from .conflict import score_datalog_conflicts
-
-        metrics.update(
-            score_datalog_conflicts(
-                predictions,
-                graph_dir,
-                query_keys=answers.keys(),
-                per_query_candidate_sets=load_per_query_candidate_sets(answers_path),
-                souffle_bin=souffle_bin,
-                report_path=conflict_report_path,
-            )
-        )
-    if output_path:
-        write_json(output_path, metrics)
+    violations = float(loaded.diagnostics.violations_by_task.get(evaluation.task, 0))
+    if not present:
+        return {
+            "queries_expected": float(len(evaluation.index)),
+            "queries_scored": 0.0,
+            "submission_warnings": violations,
+        }
+    answers = {query_id: evaluation.answers[query_id] for query_id in present}
+    preferred = {query_id: evaluation.preferred[query_id] for query_id in present}
+    graded = {query_id: evaluation.graded[query_id] for query_id in present if query_id in evaluation.graded}
+    metrics = score_prediction_rows(loaded.predictions_by_query, answers, preferred, graded)
+    if not strict:
+        metrics["queries_expected"] = float(len(evaluation.index))
+        metrics["queries_scored"] = float(len(present))
+        metrics["submission_warnings"] = violations
     return metrics
+
+
+def task_names(root: str | Path, filename: str) -> list[str]:
+    """Task directories under ``root`` that contain ``filename``."""
+    return sorted(path.name for path in Path(root).iterdir() if path.is_dir() and (path / filename).is_file())
+
+
+def score_submission(
+    submission_path: str | Path,
+    data_dir: str | Path | None,
+    evaluation_dir: str | Path | None,
+    split: str,
+    tasks: Iterable[str] | None = None,
+    strict: bool = True,
+) -> dict[str, dict[str, float]]:
+    """
+    Score a combined-task submission. The query index comes from
+    ``data_dir/tasks/<task>/<split>.cands.tsv`` (or, when ``data_dir`` is None,
+    from ``evaluation_dir/<task>/<split>.answers.tsv``); the reference files from
+    ``evaluation_dir`` (default ``data_dir/evaluation``). Returns per-task metrics
+    plus ``"macro"`` (:func:`macro_average_tasks`).
+    """
+    if evaluation_dir is None:
+        if data_dir is None:
+            raise ValueError("score_submission needs data_dir or evaluation_dir")
+        evaluation_dir = Path(data_dir) / "evaluation"
+    evaluation_dir = Path(evaluation_dir)
+    if data_dir is not None:
+        tasks_root, filename = Path(data_dir) / "tasks", f"{split}.cands.tsv"
+    else:
+        tasks_root, filename = evaluation_dir, f"{split}.answers.tsv"
+    selected = sorted(tasks) if tasks else task_names(tasks_root, filename)
+    if not selected:
+        raise ValueError(f"no task under {tasks_root} has {filename}")
+    index = load_query_index([tasks_root / task / filename for task in selected])
+    loaded = load_submission(submission_path, index, strict=strict)
+    per_task = {task: score_task(loaded, evaluation_dir, task, split, strict=strict) for task in selected}
+    return submission_result(per_task, loaded)
+
+
+def submission_result(per_task: dict[str, dict[str, float]], loaded: LoadedSubmission) -> dict[str, dict[str, float]]:
+    """Per-task metrics plus the ``"macro"`` block (:func:`macro_average_tasks`) with the
+    submission-level counts no task owns: ``submission_warnings_unattributed`` and
+    ``submission_warnings_total`` (per-task warnings + unattributed). Every scoring entry
+    point builds its result here."""
+    result: dict[str, dict[str, float]] = dict(per_task)
+    macro = macro_average_tasks(per_task)
+    unattributed = float(loaded.diagnostics.unattributed_violations)
+    macro["submission_warnings_unattributed"] = unattributed
+    macro["submission_warnings_total"] = macro.get("submission_warnings", 0.0) + unattributed
+    result["macro"] = macro
+    return result
+
+
+# =========================================================================
+# Cross-task reduction
+# =========================================================================
+
+_COUNT_SUFFIXES = ("_queries", "_count", "_scored", "_expected", "_warnings")
+
+
+def is_count_metric(key: str) -> bool:
+    """The shared count-metric registry: a key is a count iff it is exactly
+    ``queries`` or ends in ``_queries``, ``_count``, ``_scored``, ``_expected``
+    or ``_warnings``. Counts are summed across tasks; everything else is a rate
+    and is averaged."""
+    return key == "queries" or key.endswith(_COUNT_SUFFIXES)
+
+
+def _task_was_scored(metrics: dict[str, float]) -> bool:
+    """A task contributes rate metrics iff it scored at least one query; an entry
+    without either count (hand-built metric dicts) is taken as scored."""
+    if "queries_scored" in metrics:
+        return metrics["queries_scored"] > 0
+    if "queries" in metrics:
+        return metrics["queries"] > 0
+    return True
+
+
+def macro_average_tasks(per_task: dict[str, dict[str, float]]) -> dict[str, float]:
+    """
+    Macro over tasks. Rate metrics: arithmetic mean over the tasks with at least
+    one scored query. Count metrics (:func:`is_count_metric`): summed over every
+    requested task, emitted as ``<key>_sum``, ``<key>_mean`` and the bare key
+    (= the sum). Also reports ``tasks`` and ``tasks_scored``.
+    """
+    scored = [metrics for metrics in per_task.values() if _task_was_scored(metrics)]
+    keys: set[str] = set()
+    for metrics in per_task.values():
+        keys.update(metrics)
+    macro: dict[str, float] = {}
+    for key in sorted(keys):
+        if is_count_metric(key):
+            values = [float(metrics[key]) for metrics in per_task.values() if key in metrics]
+            total = float(sum(values))
+            macro[f"{key}_sum"] = total
+            macro[f"{key}_mean"] = total / len(values)
+            macro[key] = total
+        else:
+            values = [float(metrics[key]) for metrics in scored if key in metrics]
+            if values:
+                macro[key] = sum(values) / len(values)
+    macro["tasks"] = float(len(per_task))
+    macro["tasks_scored"] = float(len(scored))
+    return macro
+
+
+def write_metrics(path: str | Path, metrics: dict) -> None:
+    write_json(path, metrics)

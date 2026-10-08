@@ -1,0 +1,5 @@
+QueryID	SrcEntity	TgtEntity	Relation
+NCIT-DOID-1a8109a3	NCIT:C001	DOID:D001	equivalent
+NCIT-DOID-76b26548	NCIT:C002	DOID:D000	source_subsumed_by_target
+NCIT-DOID-b98054a5	NCIT:C002	DOID:D002	equivalent
+NCIT-DOID-d7a58d00	NCIT:C001	DOID:D000	source_subsumed_by_target

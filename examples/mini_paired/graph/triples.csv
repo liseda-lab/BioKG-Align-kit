@@ -5,3 +5,4 @@ T00000003,DOID:D000,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,p
 T00000004,DOID:D001,subclass_of,DOID:D000,DOID,DOID,mini,asserted,false,false,public
 T00000005,DOID:D002,subclass_of,DOID:D000,DOID,DOID,mini,asserted,false,false,public
 T00000006,DOID:D003,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,public
+T00000007,DOID:D004,subclass_of,DOID:DROOT,DOID,DOID,mini,asserted,false,false,public

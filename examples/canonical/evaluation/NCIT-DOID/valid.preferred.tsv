@@ -1,0 +1,4 @@
+QueryID	SrcEntity	TgtEntity	Relation
+NCIT-DOID-37d965a7	NCIT:C003	DOID:D003	equivalent
+NCIT-DOID-cf2c8d92	NCIT:C002	DOID:D002	equivalent
+NCIT-DOID-ffcf97fa	NCIT:C001	DOID:D001	equivalent

@@ -1,47 +1,66 @@
 # Submission format
 
-A BioKG-Align submission is a single TSV file covering all three task pairs in the canonical order. This document defines the per-row structure; [block_scoring.md](block_scoring.md) covers the per-query grouping and validation rules.
+A BioKG-Align submission (kit 0.4.0, format id `biokg-align-submission-v0.4.0-ids`) is a
+single TSV file covering **every task of the phase**. Rows are joined to queries by their
+`QueryID`; the row order is irrelevant. This document defines the per-row structure;
+[submission_scoring.md](submission_scoring.md) covers the join, the validation rules and the
+lenient local mode.
 
 ## File layout
 
-- **Separator:** tab character (`\t`). Submissions must not use commas, spaces, or any other separator.
-- **Header row:** required. The header is exactly `SrcEntity\tTgtEntity\tRelation\tScore` and must appear as the first line of the file.
-- **Encoding:** UTF-8. Identifiers are ASCII-only in the released data (`[A-Za-z0-9_:-]`), so UTF-8 vs ASCII is observably equivalent on well-formed submissions.
-- **Line endings:** LF (`\n`). The scorer tolerates CRLF input but produces LF for any file it writes.
+- **Separator:** tab (`\t`).
+- **Header row:** required, exactly `QueryID\tSrcEntity\tTgtEntity\tRelation\tScore`.
+- **Encoding:** UTF-8. Identifiers in the released data are ASCII.
+- **Line endings:** LF (`\n`).
+- **One file for all tasks.** The task of a row is the prefix of its `QueryID`.
 
 ## Columns
 
-| Column     | Type   | Description                                                     |
-|------------|--------|-----------------------------------------------------------------|
-| `SrcEntity`| string | Source entity identifier (e.g. `NCIT:C2991`). Must match the canonical `SrcEntity` for this query's block. |
-| `TgtEntity`| string | Target entity identifier; must be a member of this query's candidate set. |
-| `Relation` | string | One of `equivalent`, `source_subsumed_by_target`, `source_subsumes_target`. |
-| `Score`    | float  | Real-valued confidence. Higher = more confident. Any finite float is valid; NaN and infinity are rejected. |
+| Column      | Type   | Description |
+|-------------|--------|-------------|
+| `QueryID`   | string | The query's opaque identifier, copied from `tasks/<task>/<split>.cands.tsv` (pattern `^[A-Z]+-[A-Z]+-[0-9a-f]{8}$`, e.g. `SNOMED-FMA-3fa94c0e`). |
+| `SrcEntity` | string | The query's source entity, exactly as in the candidate file. |
+| `TgtEntity` | string | A member of the query's candidate set. |
+| `Relation`  | string | One of `equivalent`, `source_subsumed_by_target`, `source_subsumes_target`. |
+| `Score`     | float  | Higher = more confident. Any finite float (negative values included); NaN and infinity are rejected. |
+
+Every query must carry **exactly one row per (candidate, relation) pair**: 50 candidates × 3
+relations = 150 rows per query in the canonical release.
+
+## Query identity
+
+`QueryID` is opaque: the eight hexadecimal digits are a keyed hash and carry no
+information about the query (in particular not its mode). A source entity may own two
+queries — an equivalence-mode and a subsumption-mode query — with different `QueryID`s and
+different candidate pools (see [pool_model.md](pool_model.md)). Always key your own
+bookkeeping by `QueryID`, never by `SrcEntity`.
 
 ## Score semantics
 
-Scores are interpreted as a strict order over $(\mathrm{target}, \mathrm{relation})$ pairs within a query block. There is no required range ($[0, 1]$, $[-\infty, \infty]$, anything calibrated, anything uncalibrated) — only the relative order matters.
+Only the order of scores within a query matters. Ties are broken deterministically by
 
-Ties are broken deterministically by:
-
-1. ascending `TgtEntity`,
-2. then by relation in the fixed order $\equiv\ \prec\ \sqsubseteq\ \prec\ \sqsupseteq$ (`equivalent`, then `source_subsumed_by_target`, then `source_subsumes_target`).
-
-If you re-rank rows in any post-processing pipeline (sort, group, deduplicate, ...) preserve the convention, otherwise your local kit scores will diverge from the leaderboard.
-
-## What is **not** in a submission row
-
-The submission row has no `QueryID` column. The public `test.cands.tsv` also has no `QueryID` column — both are reconstructed positionally by the scorer from the row order of `test.cands.tsv`. See [block_scoring.md](block_scoring.md) for how positional recovery works in detail; see [pool_model.md](pool_model.md) for why some source entities appear in two adjacent blocks under the pool model.
+1. ascending `TgtEntity`, then
+2. relation order `equivalent` ≺ `source_subsumed_by_target` ≺ `source_subsumes_target`.
 
 ## Worked example
 
 ```text
-SrcEntity   TgtEntity   Relation                     Score
-NCIT:C2991  DOID:1909   equivalent                   0.987651
-NCIT:C2991  DOID:1909   source_subsumed_by_target    0.123456
-NCIT:C2991  DOID:1909   source_subsumes_target       0.012345
-NCIT:C2991  DOID:9970   equivalent                   0.456789
+QueryID              SrcEntity    TgtEntity   Relation                    Score
+NCIT-DOID-5f0c2a91   NCIT:C2991   DOID:1909   equivalent                  0.987651
+NCIT-DOID-5f0c2a91   NCIT:C2991   DOID:1909   source_subsumed_by_target   0.123456
+NCIT-DOID-5f0c2a91   NCIT:C2991   DOID:1909   source_subsumes_target      0.012345
+SNOMED-FMA-0b7d33e4  SNOMED:8089  FMA:7088    equivalent                  -1.5
 ...
 ```
 
-(One block of 150 rows for one query begins here; the next block of 150 rows would start once all $50 \text{ candidates} \times 3 \text{ relations}$ rows for this query are written.)
+`evaluation/sample_submission.tsv` in the release shows the header with two rows of an
+obviously fake query (`EXAMPLE-TASK-00000000`). `evaluation/submission_schema.json` (a copy of
+the kit's [`submission_schema.json`](../submission_schema.json)) states the contract in
+machine-readable form.
+
+## Changes from the v0.2–v0.3 format
+
+The positional four-column block format (`SrcEntity, TgtEntity, Relation, Score`, rows grouped
+by position into 150-row blocks) is **removed**: a file in that format is rejected with a
+header error. The test candidate files now carry `QueryID`; the train/valid candidate files no
+longer carry gold columns (the gold moved to `evaluation/`).

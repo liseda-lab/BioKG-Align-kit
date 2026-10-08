@@ -38,7 +38,7 @@
   "name": "BioKG-Align",
   "description": "The released BioKG-Align package — the unified graph, candidate sets, and the public/private split.",
   "url": "https://biokg-align.lasige.di.ciencias.ulisboa.pt/data/",
-  "version": "v0.3.2-rc1",
+  "version": "v0.4.0-rc1",
   "keywords": ["NCI Thesaurus", "Human Disease Ontology", "Orphanet Rare Disease Ontology", "SNOMED CT", "Foundational Model of Anatomy", "ontology alignment", "knowledge graph", "typed link prediction"],
   "license": [{ "@type": "CreativeWork", "name": "CC BY 4.0" }, { "@type": "CreativeWork", "name": "CC0 1.0" }, { "@type": "CreativeWork", "name": "CC BY 4.0" }, { "@type": "CreativeWork", "name": "FMA License" }, { "@type": "CreativeWork", "name": "SNOMED CT Affiliate License" }]
 }
@@ -125,16 +125,22 @@
         <td class="py-3 text-muted">Public supervised labels with their relation types.</td>
       </tr><tr class="border-b border-line align-top">
         <td class="py-3 pr-4"><code class="text-xs">tasks/*/*.cands.tsv</code></td>
-        <td class="py-3 text-muted">Candidate files for train, validation, and test queries.</td>
+        <td class="py-3 text-muted">Candidate files for train, validation, and test queries: <code>QueryID</code> (opaque), <code>SrcEntity</code>, <code>TgtCandidates</code>; rows shuffled.</td>
       </tr><tr class="border-b border-line align-top">
-        <td class="py-3 pr-4"><code class="text-xs">tasks/*/{train,valid}.preferred.tsv</code></td>
+        <td class="py-3 pr-4"><code class="text-xs">evaluation/*/{train,valid}.answers.tsv</code></td>
+        <td class="py-3 text-muted">Train and validation gold per <code>QueryID</code> (target, relation, pool).</td>
+      </tr><tr class="border-b border-line align-top">
+        <td class="py-3 pr-4"><code class="text-xs">evaluation/*/{train,valid}.preferred.tsv</code></td>
         <td class="py-3 text-muted">One preferred (target, relation) gold per query; drives the Preferred Typed (Relation-Aware) MRR.</td>
       </tr><tr class="border-b border-line align-top">
-        <td class="py-3 pr-4"><code class="text-xs">tasks/*/{train,valid}.graded.tsv</code></td>
+        <td class="py-3 pr-4"><code class="text-xs">evaluation/*/{train,valid}.graded.tsv</code></td>
         <td class="py-3 text-muted">Graded relevance over (candidate, relation) pairs, from the preferred pairs and the target-ontology hierarchy; drives Hierarchy-Aware Typed nDCG@10.</td>
       </tr><tr class="border-b border-line align-top">
-        <td class="py-3 pr-4"><code class="text-xs">evaluation/*</code></td>
-        <td class="py-3 text-muted">Sample submission, submission schema, and the local scorer. Kit scoring available; CodaBench integration in preparation. <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></td>
+        <td class="py-3 pr-4"><code class="text-xs">evaluation/query_metadata.tsv</code></td>
+        <td class="py-3 text-muted">Task, split, source and query mode (equivalence or subsumption) of every train and validation query; test modes stay private.</td>
+      </tr><tr class="border-b border-line align-top">
+        <td class="py-3 pr-4"><code class="text-xs">evaluation/{sample_submission.tsv, submission_schema.json, scorer}</code></td>
+        <td class="py-3 text-muted">Sample five-column submission, submission schema, and the local scorer. Kit scoring available; CodaBench integration in preparation. <span class="badge-provisional" title="This detail is not yet confirmed and may change">Provisional</span></td>
       </tr><tr class="border-b border-line align-top">
         <td class="py-3 pr-4"><code class="text-xs">baseline_predictions/*</code></td>
         <td class="py-3 text-muted">Organiser baseline-system predictions on the test split.</td>
@@ -212,7 +218,7 @@
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
         <li>Licence</li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.2</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.4.0</a></li>
       </ul>
     </div>
   </div>

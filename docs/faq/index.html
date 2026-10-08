@@ -103,7 +103,7 @@
     </details>
     <details class="card">
       <summary class="cursor-pointer font-semibold text-ink">How is the hidden ground truth protected?</summary>
-      <p class="mt-2 text-sm text-muted">The test split releases candidate sets only — the gold targets are withheld. Final scoring runs server-side against those held-out answers, so a submission is judged on labels it never sees.</p>
+      <p class="mt-2 text-sm text-muted">The test split releases candidate sets only (<code>QueryID</code>, source, candidates) — the gold targets, the preferred pairs, the graded relevance and the per-query mode are withheld. Final scoring runs server-side against those held-out files, so a submission is judged on labels it never sees. Query identifiers are opaque keyed hashes and rows are shuffled, so neither reveals a query's mode.</p>
     </details>
     <details class="card">
       <summary class="cursor-pointer font-semibold text-ink">What is the complex track?</summary>
@@ -141,7 +141,7 @@
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
         <li>Licence</li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.2</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.4.0</a></li>
       </ul>
     </div>
   </div>

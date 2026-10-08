@@ -1,3 +1,3 @@
-"""Participant utilities for the BioKG-Align challenge (v0.2.0)."""
+"""Participant utilities for the BioKG-Align challenge (kit 0.4.0)."""
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"

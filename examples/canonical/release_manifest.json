@@ -1,0 +1,10 @@
+{
+  "candidate_count": 50,
+  "release": {
+    "name": "BioKG-Align-kit-example",
+    "version": "canonical"
+  },
+  "tasks": [
+    "NCIT-DOID"
+  ]
+}

@@ -1,0 +1,5 @@
+QueryID	Task	Split	SrcEntity	QueryMode
+NCIT-DOID-1a8109a3	NCIT-DOID	valid	NCIT:C001	equivalence
+NCIT-DOID-76b26548	NCIT-DOID	valid	NCIT:C002	subsumption
+NCIT-DOID-b98054a5	NCIT-DOID	valid	NCIT:C002	equivalence
+NCIT-DOID-d7a58d00	NCIT-DOID	valid	NCIT:C001	subsumption

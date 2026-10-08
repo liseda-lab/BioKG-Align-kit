@@ -5,3 +5,4 @@ DOID:D000,DOID,https://example.org/DOID/D000,D000,Cancer,Malignant neoplasm,Synt
 DOID:D001,DOID,https://example.org/DOID/D001,D001,Lung cancer,Cancer of lung,Synthetic example concept.,disease,mini
 DOID:D002,DOID,https://example.org/DOID/D002,D002,Breast cancer,Breast carcinoma,Synthetic example concept.,disease,mini
 DOID:D003,DOID,https://example.org/DOID/D003,D003,Pneumonia,Inflammatory lung disease,Synthetic example concept.,disease,mini
+DOID:D004,DOID,https://example.org/DOID/D004,D004,Asthma,Bronchial asthma,Synthetic distractor concept.,disease,mini

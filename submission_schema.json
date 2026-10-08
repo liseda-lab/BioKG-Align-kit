@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://biokg-align.lasige.di.ciencias.ulisboa.pt/schemas/submission_schema_v0.2.0.json",
-  "title": "BioKG-Align v0.2.0 Submission Schema",
-  "description": "JSON-Schema description of the participant submission TSV for the BioKG-Align main track (block-scoring format). The submission is a tab-separated values file; this schema documents the per-row structure and the file-level invariants. Validation tooling: the kit's `biokg-align-kit verify` enforces these rules.",
+  "$id": "https://biokg-align.lasige.di.ciencias.ulisboa.pt/schemas/submission_schema_v0.4.0.json",
+  "title": "BioKG-Align v0.4.0 Submission Schema",
+  "description": "JSON-Schema description of the participant submission TSV for the BioKG-Align main track (ID-joined format). The submission is one tab-separated file covering every task; rows are joined to queries by the opaque QueryID, in any order. Validation tooling: `biokg-align-kit verify` runs the platform's strict loader.",
   "type": "object",
   "properties": {
     "format": {
       "type": "string",
-      "const": "biokg-align-submission-v0.2.0-block",
+      "const": "biokg-align-submission-v0.4.0-ids",
       "description": "Format identifier. Not a column in the TSV; included here for tooling that wants to embed the schema reference."
     },
     "file_layout": {
@@ -18,23 +18,28 @@
         "header_row_required": { "type": "boolean", "const": true },
         "columns": {
           "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
+          "minItems": 5,
+          "maxItems": 5,
           "items": { "type": "string" },
-          "const": ["SrcEntity", "TgtEntity", "Relation", "Score"]
+          "const": ["QueryID", "SrcEntity", "TgtEntity", "Relation", "Score"]
         },
         "column_types": {
           "type": "object",
           "properties": {
+            "QueryID": {
+              "type": "string",
+              "pattern": "^[A-Z]+-[A-Z]+-[0-9a-f]{8}$",
+              "description": "Opaque query identifier copied from tasks/<task>/<split>.cands.tsv (e.g. 'SNOMED-FMA-3fa94c0e'). The prefix is the task; the eight hex digits carry no information about the query."
+            },
             "SrcEntity": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9_:-]+$",
-              "description": "Source entity identifier from the released graph (e.g. 'SNOMED:12345')."
+              "pattern": "^[A-Za-z0-9_:.-]+$",
+              "description": "The query's source entity, exactly as in the candidate file."
             },
             "TgtEntity": {
               "type": "string",
-              "pattern": "^[A-Za-z0-9_:-]+$",
-              "description": "Target entity identifier; must be a member of that query's candidate set (see block-layout)."
+              "pattern": "^[A-Za-z0-9_:.-]+$",
+              "description": "Target entity identifier; must be a member of that query's candidate set."
             },
             "Relation": {
               "type": "string",
@@ -43,118 +48,104 @@
                 "source_subsumed_by_target",
                 "source_subsumes_target"
               ],
-              "description": "Relation type. Must be one of the canonical paper §1.4 values unless the build overrides `submission.relations`."
+              "description": "Relation type."
             },
             "Score": {
               "type": "number",
-              "description": "Real-valued confidence score (higher = more confident)."
+              "description": "Finite real-valued confidence score (higher = more confident). Negative values are allowed; NaN and infinity are rejected."
             }
           },
-          "required": ["SrcEntity", "TgtEntity", "Relation", "Score"]
+          "required": ["QueryID", "SrcEntity", "TgtEntity", "Relation", "Score"]
         }
       },
       "required": ["separator", "header_row_required", "columns", "column_types"]
     },
-    "block_layout": {
+    "query_layout": {
       "type": "object",
-      "description": "Positional grouping of submission rows into per-query blocks. The canonical query order is determined by the concatenation of `tasks/<task>/test.cands.tsv` files in canonical task order.",
+      "description": "How submission rows map to queries.",
       "properties": {
-        "canonical_task_order": {
-          "type": "array",
-          "items": { "type": "string" },
-          "const": ["NCIT-DOID", "SNOMED-FMA", "SNOMED-NCIT"],
-          "description": "Order in which per-task cands.tsv files are conceptually concatenated to define the global query order."
+        "join": {
+          "type": "string",
+          "const": "rows are joined to queries by QueryID; row order is irrelevant",
+          "description": "The scorer never uses row position."
         },
-        "block_size": {
-          "type": "integer",
-          "description": "Number of submission rows per query. Computed as `candidate_count * |submission.relations|`. Canonical: 50 * 3 = 150.",
-          "const": 150
+        "files": {
+          "type": "string",
+          "const": "one file for all tasks of the phase",
+          "description": "A single submission covers every task; the QueryID prefix names the task."
+        },
+        "rows_per_query": {
+          "type": "string",
+          "const": "exactly candidate_count x 3: every (candidate, relation) pair of the query, once",
+          "description": "Canonical release: 50 candidates x 3 relations = 150 rows per query."
         },
         "candidate_count": {
           "type": "integer",
           "const": 50,
-          "description": "Number of candidate target entities per query."
+          "description": "Number of candidate target entities per query in the canonical release (release_manifest.json['candidate_count'])."
         },
         "relations_per_query": {
           "type": "integer",
           "const": 3,
           "description": "Number of relations scored per (query, candidate) pair."
-        },
-        "positional_invariant": {
-          "type": "string",
-          "const": "row[i] belongs to block[i // block_size]; block[k] corresponds to test.cands.tsv row k",
-          "description": "How the scorer maps submission rows back to queries."
-        },
-        "intra_block_order": {
-          "type": "string",
-          "const": "free; the scorer indexes by (TgtEntity, Relation) within each block",
-          "description": "The 150 rows within a single block can appear in any order. The scorer indexes by (TgtEntity, Relation); ordering does not affect the metric."
         }
       },
-      "required": [
-        "canonical_task_order",
-        "block_size",
-        "candidate_count",
-        "relations_per_query",
-        "positional_invariant",
-        "intra_block_order"
-      ]
+      "required": ["join", "files", "rows_per_query", "candidate_count", "relations_per_query"]
     },
     "validation_rules": {
       "type": "object",
-      "description": "Strictness rules applied by the platform scorer (`load_block_format_predictions`) and by the kit's local validator (`validate_submission`). See `documentation/block_scoring.md (Strictness rules)`.",
+      "description": "Rules applied by the platform scorer, the organiser's private test scoring and `biokg-align-kit verify` (strict mode, all fatal). The kit's local `score` command for train/valid is lenient by default and reports the same violations as warnings with a documented fallback; see documentation/submission_scoring.md.",
       "properties": {
         "fatal": {
           "type": "array",
           "items": { "type": "string" },
           "const": [
-            "Total row count != N_queries * block_size",
-            "Block contains rows for a SrcEntity disagreeing with cands.tsv",
-            "Row's Relation not in submission.relations",
-            "Score not parseable as a finite float (NaN and infinity are rejected)"
+            "The header is exactly QueryID, SrcEntity, TgtEntity, Relation, Score (and every row has five fields)",
+            "Every QueryID exists in the phase's candidate files, and every query appears",
+            "SrcEntity equals the query's source entity",
+            "TgtEntity is in the query's candidate set",
+            "Relation is one of equivalent, source_subsumed_by_target, source_subsumes_target",
+            "Score parses to a finite float",
+            "No duplicate (QueryID, TgtEntity, Relation)",
+            "Every query has exactly candidate_count x 3 rows"
           ]
         },
         "warning": {
           "type": "array",
           "items": { "type": "string" },
-          "const": [
-            "Duplicate (TgtEntity, Relation) pair within a block (platform keeps max score)",
-            "Missing canonical (TgtEntity, Relation) pair within a block (platform assigns score -inf, i.e. last-rank)"
-          ]
+          "const": []
         },
         "silent_filter": {
           "type": "array",
           "items": { "type": "string" },
-          "const": [
-            "Row's TgtEntity not in that query's candidate set"
-          ]
+          "const": []
         }
       },
       "required": ["fatal", "warning", "silent_filter"]
     },
     "sizing": {
       "type": "object",
-      "description": "Expected file sizes for the canonical build.",
+      "description": "Expected test-phase file sizes for the canonical v0.4.0 build.",
       "properties": {
         "n_queries_canonical": {
           "type": "integer",
-          "const": 30216,
-          "description": "Total test queries across all three tasks under the canonical pool model at fraction=1.0."
+          "const": 30261,
+          "description": "Total test queries across all three tasks in the canonical v0.4.0 build."
         },
         "n_rows_canonical": {
           "type": "integer",
-          "const": 4532400,
-          "description": "Total submission rows for the canonical build (n_queries_canonical * block_size = 30,216 * 150)."
+          "const": 4539150,
+          "description": "Total test submission rows for the canonical build (n_queries_canonical * 150)."
         }
       },
       "required": ["n_queries_canonical", "n_rows_canonical"]
     }
   },
-  "required": ["format", "file_layout", "block_layout", "validation_rules", "sizing"],
+  "required": ["format", "file_layout", "query_layout", "validation_rules", "sizing"],
   "examples": [
     {
-      "format": "biokg-align-submission-v0.2.0-block",
-      "_excerpt_of_submission_tsv": "SrcEntity\tTgtEntity\tRelation\tScore\nNCIT:C2991\tDOID:1909\tequivalent\t0.987651\nNCIT:C2991\tDOID:1909\tsource_subsumed_by_target\t0.123456\nNCIT:C2991\tDOID:1909\tsource_subsumes_target\t0.012345\nNCIT:C2991\tDOID:9970\tequivalent\t0.456789"
+      "format": "biokg-align-submission-v0.4.0-ids",
+      "_excerpt_of_submission_tsv": "QueryID\tSrcEntity\tTgtEntity\tRelation\tScore\nNCIT-DOID-5f0c2a91\tNCIT:C2991\tDOID:1909\tequivalent\t0.987651\nNCIT-DOID-5f0c2a91\tNCIT:C2991\tDOID:1909\tsource_subsumed_by_target\t0.123456\nNCIT-DOID-5f0c2a91\tNCIT:C2991\tDOID:1909\tsource_subsumes_target\t0.012345\nSNOMED-FMA-0b7d33e4\tSNOMED:80891009\tFMA:7088\tequivalent\t0.456789"
     }
   ]
 }

@@ -85,10 +85,12 @@
   <span class="eyebrow">Main Track &amp; Evaluation</span>
   <h1 class="mt-3 text-3xl md:text-4xl">Rank candidate–relation pairs across ontology pairs</h1>
   <p class="mt-4 text-lg text-muted">
-    Each query gives a source entity and a fixed set of 50
+    Each query has an opaque identifier and gives a source entity and a fixed set of 50
     target candidates. A system scores every candidate against the 3 relations
     — <code>equivalent</code>, <code>source_subsumed_by_target</code>, <code>source_subsumes_target</code> —
-    producing 150 scored rows per query.
+    producing 150 scored rows per query, each carrying the query's <code>QueryID</code>. A source can
+    be the subject of two queries (an equivalence-mode and a subsumption-mode one, with different
+    pools); the identifier and the shuffled row order do not reveal which is which.
   </p>
   <p class="mt-4 text-muted">
     A prediction is relevant only when it matches the reference on <em>both</em> the
@@ -559,12 +561,12 @@
   </p>
   <dl class="mt-4 space-y-3">
     <div>
-      <dt><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/block_scoring.md">Block scoring</a></dt>
-      <dd class="text-sm text-muted">How candidate rows are grouped into per-query blocks and scored.</dd>
+      <dt><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/submission_scoring.md">Submission scoring</a></dt>
+      <dd class="text-sm text-muted">How submission rows are joined to queries by <code>QueryID</code>, validated and scored.</dd>
     </div>
     <div>
       <dt><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/pool_model.md">Pool model</a></dt>
-      <dd class="text-sm text-muted">How the fixed candidate pool for each query is constructed.</dd>
+      <dd class="text-sm text-muted">How a source's queries and their fixed candidate pools are constructed, and why queries are keyed by an opaque identifier.</dd>
     </div>
     <div>
       <dt><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/metric_families.md">Metric families</a></dt>
@@ -615,7 +617,7 @@
       <h2 class="font-mono text-xs uppercase tracking-wider text-muted">Project</h2>
       <ul class="mt-3 space-y-2 text-sm text-muted">
         <li><a href="/organisers/">Organisers</a></li>
-        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.3.2</a></li>
+        <li><a href="https://github.com/liseda-lab/BioKG-Align-kit/blob/main/documentation/README.md">Documents v0.4.0</a></li>
       </ul>
     </div>
   </div>

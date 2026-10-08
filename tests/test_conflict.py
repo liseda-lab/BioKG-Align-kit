@@ -15,8 +15,8 @@ class PublicDatalogConflictTest(unittest.TestCase):
             mapping_to_rdf(("S", "T", "source_subsumes_target")),
         )
         rows = [
-            {"SrcEntity": "S", "QueryID": "Q0", "TgtEntity": "B", "Relation": "equivalent", "Score": "1"},
-            {"SrcEntity": "S", "QueryID": "Q0", "TgtEntity": "A", "Relation": "equivalent", "Score": "1"},
+            {"SrcEntity": "S", "QueryID": "S-T-00000000", "TgtEntity": "B", "Relation": "equivalent", "Score": "1"},
+            {"SrcEntity": "S", "QueryID": "S-T-00000000", "TgtEntity": "A", "Relation": "equivalent", "Score": "1"},
         ]
         self.assertEqual(
             [("S", "A", "equivalent")],
